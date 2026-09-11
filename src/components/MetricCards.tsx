@@ -17,9 +17,8 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ diff, onCardClick }) =
     <div className="metric-cards-grid">
       {/* 1. Total Followers Card */}
       <div
-        className="metric-card"
+        className="metric-card metric-card-interactive"
         onClick={() => onCardClick?.('followers')}
-        style={{ cursor: 'pointer' }}
         title="Click to view follower details"
       >
         <div className="metric-card-header">
@@ -75,9 +74,8 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ diff, onCardClick }) =
 
       {/* 2. Profile Visit / Following Card */}
       <div
-        className="metric-card"
+        className="metric-card metric-card-interactive"
         onClick={() => onCardClick?.('following')}
-        style={{ cursor: 'pointer' }}
         title="Click to view following details"
       >
         <div className="metric-card-header">
@@ -120,9 +118,8 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ diff, onCardClick }) =
 
       {/* 3. Account Reach Card */}
       <div
-        className="metric-card"
+        className="metric-card metric-card-interactive"
         onClick={() => onCardClick?.('unfollowers')}
-        style={{ cursor: 'pointer' }}
         title="Click to view reach & unfollowers"
       >
         <div className="metric-card-header">

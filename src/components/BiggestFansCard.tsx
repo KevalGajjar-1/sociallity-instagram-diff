@@ -72,25 +72,22 @@ export const BiggestFansCard: React.FC<BiggestFansCardProps> = ({
       </div>
 
       {/* Quick category mini pills */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', overflowX: 'auto' }}>
+      <div className="fans-category-tabs">
         <button
-          className={`tab-btn ${activeTab === 'fans' ? 'active' : ''}`}
+          className={`tab-btn tab-btn-mini ${activeTab === 'fans' ? 'active' : ''}`}
           onClick={() => setActiveTab('fans')}
-          style={{ fontSize: '0.74rem', padding: '4px 10px' }}
         >
           Fans ({fans.length})
         </button>
         <button
-          className={`tab-btn ${activeTab === 'lost' ? 'active' : ''}`}
+          className={`tab-btn tab-btn-mini ${activeTab === 'lost' ? 'active' : ''}`}
           onClick={() => setActiveTab('lost')}
-          style={{ fontSize: '0.74rem', padding: '4px 10px' }}
         >
           Unfollowers ({lostFollowers.length})
         </button>
         <button
-          className={`tab-btn ${activeTab === 'not_back' ? 'active' : ''}`}
+          className={`tab-btn tab-btn-mini ${activeTab === 'not_back' ? 'active' : ''}`}
           onClick={() => setActiveTab('not_back')}
-          style={{ fontSize: '0.74rem', padding: '4px 10px' }}
         >
           Not Back ({notFollowingBack.length})
         </button>
@@ -99,7 +96,7 @@ export const BiggestFansCard: React.FC<BiggestFansCardProps> = ({
       {/* User list matching mockup */}
       <div className="fans-list">
         {displayList.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.86rem', textAlign: 'center', padding: '24px 0' }}>
+          <div className="fans-empty-state">
             No accounts in this category.
           </div>
         ) : (

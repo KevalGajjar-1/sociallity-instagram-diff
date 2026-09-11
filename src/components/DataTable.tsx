@@ -501,7 +501,7 @@ export function DataTable<T>({
           <thead>
             <tr>
               {enableSelection && (
-                <th style={{ width: 44, textAlign: 'center' }}>
+                <th className="datatable-th-checkbox">
                   <input
                     type="checkbox"
                     className="datatable-checkbox"
@@ -513,28 +513,26 @@ export function DataTable<T>({
               )}
               {columns.map((col) => {
                 const isSorted = sortKey === col.key;
+                const alignClass =
+                  col.align === 'right'
+                    ? 'datatable-align-right'
+                    : col.align === 'center'
+                    ? 'datatable-align-center'
+                    : '';
+                const justifyClass =
+                  col.align === 'right'
+                    ? 'datatable-justify-right'
+                    : col.align === 'center'
+                    ? 'datatable-justify-center'
+                    : 'datatable-justify-left';
+
                 return (
                   <th
                     key={col.key}
-                    style={{
-                      width: col.width,
-                      textAlign: col.align || 'left',
-                      cursor: col.sortable ? 'pointer' : 'default',
-                    }}
                     onClick={() => handleSort(col.key, col.sortable)}
-                    className={col.sortable ? 'sortable' : ''}
+                    className={`${col.sortable ? 'sortable' : ''} ${alignClass}`.trim()}
                   >
-                    <div
-                      className="datatable-th-inner"
-                      style={{
-                        justifyContent:
-                          col.align === 'right'
-                            ? 'flex-end'
-                            : col.align === 'center'
-                            ? 'center'
-                            : 'flex-start',
-                      }}
-                    >
+                    <div className={`datatable-th-inner ${justifyClass}`}>
                       <span>{col.header}</span>
                       {col.sortable && (
                         <span className="datatable-sort-icon">
@@ -590,7 +588,7 @@ export function DataTable<T>({
                   >
                     {enableSelection && (
                       <td
-                        style={{ textAlign: 'center' }}
+                        className="datatable-td-center"
                         onClick={(e) => handleToggleRow(id, e)}
                       >
                         <input
@@ -605,13 +603,17 @@ export function DataTable<T>({
                       const cellValue = col.accessor
                         ? col.accessor(item)
                         : (item as any)[col.key];
+                      const alignClass =
+                        col.align === 'right'
+                          ? 'datatable-align-right'
+                          : col.align === 'center'
+                          ? 'datatable-align-center'
+                          : '';
 
                       return (
                         <td
                           key={col.key}
-                          style={{
-                            textAlign: col.align || 'left',
-                          }}
+                          className={alignClass}
                         >
                           {col.render ? col.render(item, index) : cellValue}
                         </td>

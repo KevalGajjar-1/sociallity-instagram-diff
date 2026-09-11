@@ -228,70 +228,61 @@ export const App: React.FC = () => {
   };
 
   // Helper to get active accounts based on activeAccountTab
-  const getActiveAccountList = (tab: FilterListType): { list: InstagramAccount[]; label: string; badgeColor: string; badgeBg: string } => {
+  const getActiveAccountList = (tab: FilterListType): { list: InstagramAccount[]; label: string; badgeClass: string } => {
     switch (tab) {
       case 'lost_followers':
         return {
           list: activeDiff.lostFollowers,
           label: 'Lost Follower (Unfollowed)',
-          badgeColor: 'var(--accent-red)',
-          badgeBg: 'var(--accent-red-bg)',
+          badgeClass: 'table-status-pill-lost',
         };
       case 'suspected_blocked':
         return {
           list: activeDiff.suspectedBlocked,
           label: 'Suspected Block / Deactivated',
-          badgeColor: '#dc2626',
-          badgeBg: 'rgba(220, 38, 38, 0.15)',
+          badgeClass: 'table-status-pill-blocked',
         };
       case 'new_followers':
         return {
           list: activeDiff.newFollowers,
           label: 'New Follower',
-          badgeColor: 'var(--accent-green)',
-          badgeBg: 'var(--accent-green-bg)',
+          badgeClass: 'table-status-pill-new',
         };
       case 'not_following_back':
         return {
           list: activeDiff.notFollowingBack,
           label: 'Not Following Back',
-          badgeColor: '#f59e0b',
-          badgeBg: 'rgba(245, 158, 11, 0.15)',
+          badgeClass: 'table-status-pill-warning',
         };
       case 'fans':
         return {
           list: activeDiff.fans,
           label: 'Fan',
-          badgeColor: 'var(--accent-purple)',
-          badgeBg: 'rgba(139, 92, 246, 0.15)',
+          badgeClass: 'table-status-pill-purple',
         };
       case 'mutuals':
         return {
           list: activeDiff.mutuals,
           label: 'Mutual',
-          badgeColor: 'var(--accent-blue)',
-          badgeBg: 'rgba(56, 189, 248, 0.15)',
+          badgeClass: 'table-status-pill-blue',
         };
       case 'all_followers':
         return {
           list: activeDiff.newSnapshot.followers,
           label: 'Follower',
-          badgeColor: 'var(--accent-purple)',
-          badgeBg: 'rgba(139, 92, 246, 0.15)',
+          badgeClass: 'table-status-pill-purple',
         };
       case 'all_following':
         return {
           list: activeDiff.newSnapshot.following,
           label: 'Following',
-          badgeColor: 'var(--accent-blue)',
-          badgeBg: 'rgba(56, 189, 248, 0.15)',
+          badgeClass: 'table-status-pill-blue',
         };
       default:
         return {
           list: activeDiff.lostFollowers,
           label: 'Lost Follower (Unfollowed)',
-          badgeColor: 'var(--accent-red)',
-          badgeBg: 'var(--accent-red-bg)',
+          badgeClass: 'table-status-pill-lost',
         };
     }
   };
@@ -302,11 +293,11 @@ export const App: React.FC = () => {
   const accountFilters: DataTableFilter<InstagramAccount>[] = [
     {
       key: 'verification',
-      label: 'Verification',
+      label: 'Account Type',
       options: [
         { label: 'All Accounts', value: 'all' },
-        { label: 'Verified Only (✓)', value: 'verified' },
-        { label: 'Standard (Unverified)', value: 'unverified' },
+        { label: 'Verified Only', value: 'verified' },
+        { label: 'Unverified', value: 'unverified' },
       ],
       filterFn: (item, val) => {
         if (val === 'verified') return !!item.isVerified;
@@ -356,31 +347,24 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.name || item.username,
       render: (item) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="table-account-cell">
           <img
             src={item.avatarUrl || `https://api.dicebear.com/7.x/notionists-neutral/svg?seed=${item.username}`}
             alt={item.username}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: '50%',
-              objectFit: 'cover',
-              background: 'var(--bg-subtle)',
-              flexShrink: 0,
-            }}
+            className="table-account-avatar"
           />
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>
+            <div className="table-account-name-row">
+              <span className="table-account-name">
                 {item.name || item.username}
               </span>
               {item.isVerified && (
-                <span title="Verified" style={{ color: 'var(--accent-blue)', display: 'inline-flex' }}>
+                <span title="Verified" className="table-account-verified">
                   <ShieldCheck size={13} fill="var(--accent-blue)" color="#fff" />
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            <span className="table-account-handle">
               @{item.username}
             </span>
           </div>
@@ -392,23 +376,18 @@ export const App: React.FC = () => {
       header: 'Category / Status',
       sortable: false,
       render: (item) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <div className="table-category-stack">
           <span
-            style={{
-              display: 'inline-block',
-              width: 'fit-content',
-              padding: '3px 10px',
-              borderRadius: 12,
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              backgroundColor: item.statusType === 'suspected_blocked' ? 'rgba(220, 38, 38, 0.15)' : currentAccountData.badgeBg,
-              color: item.statusType === 'suspected_blocked' ? '#dc2626' : currentAccountData.badgeColor,
-            }}
+            className={`table-status-pill ${
+              item.statusType === 'suspected_blocked'
+                ? 'table-status-pill-blocked'
+                : currentAccountData.badgeClass
+            }`}
           >
             {item.statusType === 'suspected_blocked' ? 'Suspected Block / Deleted' : currentAccountData.label}
           </span>
           {item.detectionNote && (
-            <span style={{ fontSize: '0.72rem', color: '#dc2626', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span className="table-detection-note">
               <AlertTriangle size={11} />
               {item.detectionNote}
             </span>
@@ -422,7 +401,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.followedAt || 0,
       render: (item) => (
-        <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+        <span className="table-text-secondary">
           {item.followedAt
             ? new Date(item.followedAt > 1e11 ? item.followedAt : item.followedAt * 1000).toLocaleDateString(undefined, {
                 year: 'numeric',
@@ -440,10 +419,9 @@ export const App: React.FC = () => {
       sortable: false,
       searchable: false,
       render: (item) => (
-        <div style={{ display: 'inline-flex', gap: 6 }}>
+        <div className="table-actions-row">
           <button
-            className="icon-btn"
-            style={{ width: 30, height: 30 }}
+            className="icon-btn table-action-icon-btn"
             onClick={() => copyUsername(item.username)}
             title="Copy username"
           >
@@ -457,8 +435,7 @@ export const App: React.FC = () => {
             href={item.profileUrl || `https://instagram.com/${item.username}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="icon-btn"
-            style={{ width: 30, height: 30 }}
+            className="icon-btn table-action-icon-btn"
             title="Check live profile status on Instagram"
           >
             <ExternalLink size={14} />
@@ -476,9 +453,9 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.date,
       render: (item) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="table-account-cell">
           <Calendar size={14} color="var(--accent-purple)" />
-          <span style={{ fontWeight: 600 }}>{item.date}</span>
+          <span className="table-text-bold">{item.date}</span>
         </div>
       ),
     },
@@ -495,7 +472,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.discovery,
       render: (item) => (
-        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+        <span className="table-text-bold">
           {item.discovery.toLocaleString()}
         </span>
       ),
@@ -506,7 +483,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.gained,
       render: (item) => (
-        <span style={{ color: 'var(--accent-green)', fontWeight: 600 }}>
+        <span className="table-text-green">
           +{item.gained}
         </span>
       ),
@@ -517,7 +494,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.lost,
       render: (item) => (
-        <span style={{ color: 'var(--accent-red)', fontWeight: 600 }}>
+        <span className="table-text-red">
           -{item.lost}
         </span>
       ),
@@ -531,16 +508,7 @@ export const App: React.FC = () => {
         const net = item.gained - item.lost;
         const isPos = net >= 0;
         return (
-          <span
-            style={{
-              padding: '2px 8px',
-              borderRadius: 12,
-              fontWeight: 700,
-              fontSize: '0.78rem',
-              background: isPos ? 'var(--accent-green-bg)' : 'var(--accent-red-bg)',
-              color: isPos ? 'var(--accent-green)' : 'var(--accent-red)',
-            }}
-          >
+          <span className={`table-status-pill ${isPos ? 'table-status-pill-new' : 'table-status-pill-lost'}`}>
             {isPos ? `+${net}` : net}
           </span>
         );
@@ -552,24 +520,12 @@ export const App: React.FC = () => {
       sortable: false,
       render: (item) =>
         item.isPeak ? (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: '3px 9px',
-              borderRadius: 12,
-              fontSize: '0.74rem',
-              fontWeight: 700,
-              background: 'rgba(245, 158, 11, 0.15)',
-              color: '#f59e0b',
-            }}
-          >
+          <span className="pill-badge-warning">
             <Sparkles size={12} />
             Peak Day
           </span>
         ) : (
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Normal</span>
+          <span className="table-text-muted">Normal</span>
         ),
     },
   ];
@@ -583,8 +539,8 @@ export const App: React.FC = () => {
       accessor: (item) => item.label,
       render: (item) => (
         <div>
-          <span style={{ fontWeight: 600 }}>{item.label}</span>
-          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>{item.fileName}</div>
+          <span className="table-text-bold">{item.label}</span>
+          <div className="table-account-handle">{item.fileName}</div>
         </div>
       ),
     },
@@ -594,7 +550,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.date,
       render: (item) => (
-        <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+        <span className="table-text-secondary">
           {item.date}
         </span>
       ),
@@ -605,17 +561,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.format,
       render: (item) => (
-        <span
-          style={{
-            padding: '2px 8px',
-            borderRadius: 6,
-            fontSize: '0.74rem',
-            fontWeight: 700,
-            background: 'var(--bg-subtle)',
-            color: 'var(--accent-purple)',
-            border: '1px solid var(--border-color)',
-          }}
-        >
+        <span className="badge-format">
           {item.format}
         </span>
       ),
@@ -626,7 +572,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.followersCount,
       render: (item) => (
-        <span style={{ fontWeight: 600 }}>
+        <span className="table-text-bold">
           {item.followersCount > 0 ? item.followersCount.toLocaleString() : '—'}
         </span>
       ),
@@ -637,7 +583,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.followingCount,
       render: (item) => (
-        <span style={{ fontWeight: 600 }}>
+        <span className="table-text-bold">
           {item.followingCount > 0 ? item.followingCount.toLocaleString() : '—'}
         </span>
       ),
@@ -648,12 +594,7 @@ export const App: React.FC = () => {
       sortable: true,
       accessor: (item) => item.netChange,
       render: (item) => (
-        <span
-          style={{
-            fontWeight: 700,
-            color: item.netChange > 0 ? 'var(--accent-green)' : 'var(--text-muted)',
-          }}
-        >
+        <span className={`table-text-bold ${item.netChange > 0 ? 'table-text-green' : 'table-text-muted'}`}>
           {item.netChange > 0 ? `+${item.netChange.toLocaleString()}` : '—'}
         </span>
       ),
@@ -663,31 +604,11 @@ export const App: React.FC = () => {
       header: 'Status',
       sortable: true,
       accessor: (item) => item.status,
-      render: (item) => {
-        let bg = 'var(--bg-subtle)';
-        let color = 'var(--text-secondary)';
-        if (item.status === 'Ready') {
-          bg = 'var(--accent-green-bg)';
-          color = 'var(--accent-green)';
-        } else if (item.status === 'Scheduled') {
-          bg = 'rgba(139, 92, 246, 0.15)';
-          color = 'var(--accent-purple)';
-        }
-        return (
-          <span
-            style={{
-              padding: '3px 10px',
-              borderRadius: 12,
-              fontSize: '0.74rem',
-              fontWeight: 700,
-              backgroundColor: bg,
-              color: color,
-            }}
-          >
-            {item.status}
-          </span>
-        );
-      },
+      render: (item) => (
+        <span className={`status-pill ${item.status === 'Ready' ? 'status-ready' : item.status === 'Scheduled' ? 'status-scheduled' : ''}`}>
+          {item.status}
+        </span>
+      ),
     },
     {
       key: 'action',
@@ -697,11 +618,10 @@ export const App: React.FC = () => {
       searchable: false,
       render: (item) => (
         <button
-          className="datatable-btn-tool"
+          className="datatable-btn-tool datatable-btn-sm"
           onClick={() => {
             alert(`Selected snapshot: ${item.label}`);
           }}
-          style={{ padding: '4px 8px', fontSize: '0.75rem' }}
         >
           <ArrowUpRight size={12} />
           <span>View</span>
@@ -770,29 +690,13 @@ export const App: React.FC = () => {
 
         {/* Privacy & Detection Callout Banner */}
         <div className="privacy-banner">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-              flexWrap: 'wrap',
-              width: '100%',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px 18px',
-                flexWrap: 'wrap',
-              }}
-            >
+          <div className="privacy-banner-inner">
+            <div className="privacy-banner-links">
               <span
                 className="privacy-link"
                 onClick={() => setShowBlockInfo(!showBlockInfo)}
               >
-                <HelpCircle size={14} style={{ flexShrink: 0 }} />
+                <HelpCircle size={14} className="icon-no-shrink" />
                 <span>{showBlockInfo ? 'Hide Detection Guide' : 'How Block/Unfollow is detected?'}</span>
               </span>
               <span className="privacy-link" onClick={() => setIsHowToOpen(true)}>
@@ -803,20 +707,10 @@ export const App: React.FC = () => {
             {diff && (
               <button
                 onClick={handleClearData}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 0',
-                }}
+                className="privacy-banner-btn-clear"
                 title="Clear current data session"
               >
-                <Trash2 size={13} style={{ flexShrink: 0 }} />
+                <Trash2 size={13} className="icon-no-shrink" />
                 Clear Data
               </button>
             )}
@@ -825,32 +719,22 @@ export const App: React.FC = () => {
 
         {/* Block & Unfollow Detection Explanation Drawer */}
         {showBlockInfo && (
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-md)',
-              padding: '16px 20px',
-              marginBottom: '20px',
-              boxShadow: 'var(--shadow-sm)',
-              animation: 'fadeIn 0.25s ease',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <div className="block-info-drawer">
+            <div className="block-info-header">
               <AlertTriangle size={16} color="var(--accent-purple)" />
-              <h4 style={{ fontSize: '0.92rem', fontWeight: 700 }}>
+              <h4 className="block-info-title">
                 How Instagram Unfollow & Block Detection Works
               </h4>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              <div style={{ background: 'var(--bg-subtle)', padding: '12px 14px', borderRadius: 'var(--radius-sm)' }}>
-                <strong style={{ color: 'var(--accent-red)', display: 'block', marginBottom: 4 }}>
+            <div className="block-info-grid">
+              <div className="block-info-card">
+                <strong className="block-info-label-unfollow">
                   1. Who Unfollowed You (100% Accurate)
                 </strong>
-                Calculated by mathematical set difference: <code style={{ background: 'var(--bg-surface)', padding: '1px 5px', borderRadius: 4 }}>oldSnapshot.followers - newSnapshot.followers</code>. If an account was in your previous export and missing in the new one, they unfollowed you.
+                Calculated by mathematical set difference: <code className="code-badge">oldSnapshot.followers - newSnapshot.followers</code>. If an account was in your previous export and missing in the new one, they unfollowed you.
               </div>
-              <div style={{ background: 'var(--bg-subtle)', padding: '12px 14px', borderRadius: 'var(--radius-sm)' }}>
-                <strong style={{ color: '#dc2626', display: 'block', marginBottom: 4 }}>
+              <div className="block-info-card">
+                <strong className="block-info-label-blocked">
                   2. Who Blocked You (Detection Flag)
                 </strong>
                 Meta never includes a "who_blocked_you" file for privacy reasons. However, when an account previously followed you and disappears while their profile returns "User not found" or chat threads vanish, our engine flags them as <strong>Suspected Blocked or Deactivated</strong>.
@@ -859,16 +743,21 @@ export const App: React.FC = () => {
           </div>
         )}
 
+        {/* Step-by-Step Instagram ZIP Export Guide Drawer (Inline, NOT a popup) */}
+        {isHowToOpen && (
+          <HowToGuideModal
+            isOpen={isHowToOpen}
+            onClose={() => setIsHowToOpen(false)}
+          />
+        )}
+
         {/* Inline ZIP Uploader - Displayed directly on page (NO popup modal) */}
         {(!diff || isUploadOpen) && (
           <div ref={uploaderRef}>
             <ZipUploader
               onDiffCalculated={(newDiff) => {
                 handleCustomDiff(newDiff);
-                setIsUploadOpen(false);
               }}
-              onClose={diff ? () => setIsUploadOpen(false) : undefined}
-              canClose={!!diff}
             />
           </div>
         )}
@@ -892,47 +781,25 @@ export const App: React.FC = () => {
             </div>
 
             {/* In-Page AJAX Sync DataTable Section */}
-            <div ref={syncTableRef} style={{ marginTop: '28px', scrollMarginTop: '20px' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '14px',
-                  flexWrap: 'wrap',
-                  gap: 12,
-                }}
-              >
+            <div ref={syncTableRef} className="sync-section-container">
+              <div className="sync-section-header">
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 700 }}>
+                  <div className="sync-section-title-group">
+                    <h2 className="sync-section-title">
                       Live Synced Account Directory
                     </h2>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: 10,
-                        background: 'rgba(16, 185, 129, 0.12)',
-                        color: 'var(--accent-green)',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                      }}
-                    >
+                    <span className="sync-badge-live">
                       <Zap size={11} fill="var(--accent-green)" />
                       AJAX Synced ({syncLatency}ms)
                     </span>
                   </div>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  <p className="sync-section-desc">
                     {diff ? 'Instant in-page live sync for unfollowers, suspected blocks, new followers, and fans.' : 'Upload your Instagram export ZIPs to populate real data.'}
                   </p>
                 </div>
 
                 {/* Category navigation pills with Suspected Blocked */}
-                <div className="tabs-nav" style={{ marginBottom: 0 }}>
+                <div className="tabs-nav">
                   <button
                     className={`tab-btn ${activeAccountTab === 'lost_followers' ? 'active' : ''}`}
                     onClick={() => triggerAjaxSync('lost_followers')}
@@ -940,15 +807,10 @@ export const App: React.FC = () => {
                     Unfollowers ({activeDiff.lostFollowers.length})
                   </button>
                   <button
-                    className={`tab-btn ${activeAccountTab === 'suspected_blocked' ? 'active' : ''}`}
+                    className={`tab-btn tab-btn-danger ${activeAccountTab === 'suspected_blocked' ? 'active' : ''}`}
                     onClick={() => triggerAjaxSync('suspected_blocked')}
-                    style={{
-                      borderColor: activeAccountTab === 'suspected_blocked' ? '#dc2626' : undefined,
-                      color: activeAccountTab === 'suspected_blocked' ? '#ffffff' : '#dc2626',
-                      background: activeAccountTab === 'suspected_blocked' ? '#dc2626' : undefined,
-                    }}
                   >
-                    <UserX size={12} style={{ display: 'inline', marginRight: 4 }} />
+                    <UserX size={12} className="icon-no-shrink" />
                     Blocked ({activeDiff.suspectedBlocked.length})
                   </button>
                   <button
@@ -1015,157 +877,99 @@ export const App: React.FC = () => {
 
         {/* VIEW 2: OVERVIEW */}
         {currentTab === 'overview' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="secondary-view-container">
             {/* Summary Cards */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-                gap: '16px',
-              }}
-            >
+            <div className="stat-cards-grid">
               <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                  cursor: 'pointer',
-                }}
+                className="stat-card-item"
                 onClick={() => triggerAjaxSync('lost_followers')}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Lost Followers (Unfollowed)</span>
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Lost Followers (Unfollowed)</span>
                   <UserMinus size={18} color="var(--accent-red)" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-red)' }}>
+                <div className="stat-card-value text-red">
                   {activeDiff.lostFollowers.length}
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Stopped following your account</span>
+                <span className="stat-card-sub">Stopped following your account</span>
               </div>
 
               <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid rgba(220, 38, 38, 0.3)',
-                  cursor: 'pointer',
-                }}
+                className="stat-card-item stat-card-item-danger"
                 onClick={() => triggerAjaxSync('suspected_blocked')}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: '#dc2626' }}>Suspected Blocked</span>
+                <div className="stat-card-header">
+                  <span className="stat-card-title text-danger">Suspected Blocked</span>
                   <UserX size={18} color="#dc2626" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#dc2626' }}>
+                <div className="stat-card-value text-danger">
                   {activeDiff.suspectedBlocked.length}
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Profile missing or deactivated</span>
+                <span className="stat-card-sub">Profile missing or deactivated</span>
               </div>
 
               <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                  cursor: 'pointer',
-                }}
+                className="stat-card-item"
                 onClick={() => triggerAjaxSync('new_followers')}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>New Followers</span>
+                <div className="stat-card-header">
+                  <span className="stat-card-title">New Followers</span>
                   <UserCheck size={18} color="var(--accent-green)" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-green)' }}>
+                <div className="stat-card-value text-green">
                   +{activeDiff.newFollowers.length}
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Followed you in this period</span>
+                <span className="stat-card-sub">Followed you in this period</span>
               </div>
 
               <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                  cursor: 'pointer',
-                }}
+                className="stat-card-item"
                 onClick={() => triggerAjaxSync('not_following_back')}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Not Following Back</span>
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Not Following Back</span>
                   <Users size={18} color="#f59e0b" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#f59e0b' }}>
+                <div className="stat-card-value text-warning">
                   {activeDiff.notFollowingBack.length}
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Accounts you follow who don't follow back</span>
+                <span className="stat-card-sub">Accounts you follow who don't follow back</span>
               </div>
 
               <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                  cursor: 'pointer',
-                }}
+                className="stat-card-item"
                 onClick={() => triggerAjaxSync('fans')}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Fans (You Don't Follow)</span>
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Fans (You Don't Follow)</span>
                   <Users size={18} color="var(--accent-purple)" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-purple)' }}>
+                <div className="stat-card-value text-purple">
                   {activeDiff.fans.length}
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Follow you but you don't follow back</span>
+                <span className="stat-card-sub">Follow you but you don't follow back</span>
               </div>
             </div>
 
             {/* In-page Full Relationship Explorer DataTable */}
             <div ref={syncTableRef}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '16px',
-                  flexWrap: 'wrap',
-                  gap: 12,
-                }}
-              >
+              <div className="directory-header-row">
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.3rem', fontWeight: 700 }}>
+                  <div className="directory-title-stack">
+                    <h2 className="directory-title">
                       Overview Relationship Directory
                     </h2>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: 10,
-                        background: 'rgba(16, 185, 129, 0.12)',
-                        color: 'var(--accent-green)',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                      }}
-                    >
+                    <span className="sync-badge-pill">
                       <Zap size={11} fill="var(--accent-green)" />
                       AJAX Synced ({syncLatency}ms)
                     </span>
                   </div>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  <p className="directory-desc">
                     Filter, sort, search, and bulk export Instagram accounts across all relationship categories.
                   </p>
                 </div>
 
-                <div className="tabs-nav" style={{ marginBottom: 0 }}>
+                <div className="tabs-nav tabs-nav-mb-0">
                   <button
                     className={`tab-btn ${activeAccountTab === 'lost_followers' ? 'active' : ''}`}
                     onClick={() => triggerAjaxSync('lost_followers')}
@@ -1173,15 +977,10 @@ export const App: React.FC = () => {
                     Unfollowers ({activeDiff.lostFollowers.length})
                   </button>
                   <button
-                    className={`tab-btn ${activeAccountTab === 'suspected_blocked' ? 'active' : ''}`}
+                    className={`tab-btn ${activeAccountTab === 'suspected_blocked' ? 'tab-btn-danger-active active' : 'tab-btn-danger-inactive'}`}
                     onClick={() => triggerAjaxSync('suspected_blocked')}
-                    style={{
-                      borderColor: activeAccountTab === 'suspected_blocked' ? '#dc2626' : undefined,
-                      color: activeAccountTab === 'suspected_blocked' ? '#ffffff' : '#dc2626',
-                      background: activeAccountTab === 'suspected_blocked' ? '#dc2626' : undefined,
-                    }}
                   >
-                    <UserX size={12} style={{ display: 'inline', marginRight: 4 }} />
+                    <UserX size={12} className="tab-btn-icon-inline" />
                     Blocked ({activeDiff.suspectedBlocked.length})
                   </button>
                   <button
@@ -1247,21 +1046,13 @@ export const App: React.FC = () => {
 
         {/* VIEW 3: SCHEDULE */}
         {currentTab === 'schedule' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 12,
-              }}
-            >
+          <div className="secondary-view-container">
+            <div className="directory-header-row-plain">
               <div>
-                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.3rem', fontWeight: 700 }}>
+                <h2 className="directory-title">
                   Export Snapshot History & Backup Logs
                 </h2>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                <p className="directory-desc">
                   All historical Instagram data exports processed locally on your device.
                 </p>
               </div>
@@ -1294,97 +1085,63 @@ export const App: React.FC = () => {
 
         {/* VIEW 4: ANALYTICS */}
         {currentTab === 'analytics' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="secondary-view-container">
             {/* Top Analytics Metrics */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '16px',
-              }}
-            >
-              <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Follow-Back Conversion</span>
+            <div className="stat-cards-grid-lg">
+              <div className="stat-card-item">
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Follow-Back Conversion</span>
                   <TrendingUp size={18} color="var(--accent-purple)" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-purple)' }}>
+                <div className="stat-card-value text-purple">
                   {activeDiff.followBackRate}%
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Mutual ratio among following</span>
+                <span className="stat-card-sub">Mutual ratio among following</span>
               </div>
 
-              <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Net Follower Growth</span>
+              <div className="stat-card-item">
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Net Follower Growth</span>
                   <TrendingUp size={18} color="var(--accent-green)" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-green)' }}>
+                <div className="stat-card-value text-green">
                   {activeDiff.followersNetChange > 0 ? `+${activeDiff.followersNetChange.toLocaleString()}` : activeDiff.followersNetChange.toLocaleString()}
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>{activeDiff.followersChangePercent}% over last snapshot</span>
+                <span className="stat-card-sub">{activeDiff.followersChangePercent}% over last snapshot</span>
               </div>
 
-              <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Following Expansion</span>
+              <div className="stat-card-item">
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Following Expansion</span>
                   <Users size={18} color="var(--accent-blue)" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-blue)' }}>
+                <div className="stat-card-value text-blue">
                   {activeDiff.followingNetChange > 0 ? `+${activeDiff.followingNetChange.toLocaleString()}` : activeDiff.followingNetChange.toLocaleString()}
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>{activeDiff.followingChangePercent}% following change</span>
+                <span className="stat-card-sub">{activeDiff.followingChangePercent}% following change</span>
               </div>
 
-              <div
-                style={{
-                  background: 'var(--bg-surface)',
-                  padding: '20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Unfollow Rate</span>
+              <div className="stat-card-item">
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Unfollow Rate</span>
                   <UserMinus size={18} color="var(--accent-red)" />
                 </div>
-                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-red)' }}>
+                <div className="stat-card-value text-red">
                   {activeDiff.followersOldCount > 0
                     ? `${((activeDiff.lostFollowers.length / activeDiff.followersOldCount) * 100).toFixed(2)}%`
                     : '0%'}
                 </div>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>{activeDiff.lostFollowers.length} accounts unfollowed</span>
+                <span className="stat-card-sub">{activeDiff.lostFollowers.length} accounts unfollowed</span>
               </div>
             </div>
 
             {/* Daily Activity & Velocity DataTable */}
             <div>
-              <div style={{ marginBottom: '14px' }}>
-                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.3rem', fontWeight: 700 }}>
+              <div className="tabs-nav-mb">
+                <h2 className="directory-title">
                   Daily Activity & Follower Velocity DataTable
                 </h2>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                <p className="directory-desc">
                   Breakdown of profile reach, followers gained, lost, net velocity, and peak activity days.
                 </p>
               </div>
@@ -1410,13 +1167,6 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
-
-      {/* Modals - Guide modal only, Upload is rendered inline directly on the page */}
-
-      <HowToGuideModal
-        isOpen={isHowToOpen}
-        onClose={() => setIsHowToOpen(false)}
-      />
     </div>
   );
 };

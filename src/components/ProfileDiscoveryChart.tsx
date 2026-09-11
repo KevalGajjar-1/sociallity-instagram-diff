@@ -22,14 +22,14 @@ export const ProfileDiscoveryChart: React.FC<ProfileDiscoveryChartProps> = ({ di
           <span className="pill-badge negative">
             <TrendingDown size={12} />
             <span>28.49%</span>
-            <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>
+            <span className="pill-badge-sub">
               From last month
             </span>
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div className="dropdown-pill" style={{ padding: '6px 14px', fontSize: '0.82rem' }}>
+        <div className="chart-header-actions">
+          <div className="dropdown-pill dropdown-pill-sm">
             <span>30 Days</span>
             <ChevronDown size={14} />
           </div>
@@ -46,11 +46,11 @@ export const ProfileDiscoveryChart: React.FC<ProfileDiscoveryChartProps> = ({ di
         </div>
 
         {/* Horizontal dashed gridlines */}
-        <div className="chart-grid-line" style={{ top: '0%' }}></div>
-        <div className="chart-grid-line" style={{ top: '25%' }}></div>
-        <div className="chart-grid-line" style={{ top: '50%' }}></div>
-        <div className="chart-grid-line" style={{ top: '75%' }}></div>
-        <div className="chart-grid-line" style={{ top: '95%' }}></div>
+        <div className="chart-grid-line chart-grid-top-0"></div>
+        <div className="chart-grid-line chart-grid-top-25"></div>
+        <div className="chart-grid-line chart-grid-top-50"></div>
+        <div className="chart-grid-line chart-grid-top-75"></div>
+        <div className="chart-grid-line chart-grid-top-95"></div>
 
         {/* Bars */}
         <div className="bars-container">
@@ -75,10 +75,10 @@ export const ProfileDiscoveryChart: React.FC<ProfileDiscoveryChartProps> = ({ di
 
                 {/* The Bar */}
                 <div
-                  className={`bar-pill ${isSelected ? 'striped-active' : ''}`}
-                  style={{
-                    height: `${heightPercent}%`,
+                  ref={(el) => {
+                    if (el) el.style.setProperty('--bar-height', `${heightPercent}%`);
                   }}
+                  className={`bar-pill ${isSelected ? 'striped-active' : ''}`}
                   title={`${item.label}: ${item.discovery.toLocaleString()} views`}
                 />
 

@@ -59,18 +59,7 @@ export const HeroGreeting: React.FC<HeroGreetingProps> = ({
           <select
             value={timeRange}
             onChange={(e) => onTimeRangeChange(e.target.value)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontFamily: 'inherit',
-              fontWeight: 600,
-              fontSize: 'inherit',
-              color: 'inherit',
-              cursor: 'pointer',
-              outline: 'none',
-              appearance: 'none',
-              paddingRight: '6px',
-            }}
+            className="dropdown-pill-select"
           >
             <option value="30 Days">30 Days</option>
             <option value="7 Days">7 Days</option>
