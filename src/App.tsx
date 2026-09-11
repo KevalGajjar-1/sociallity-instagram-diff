@@ -35,8 +35,6 @@ import {
   Zap,
   AlertTriangle,
   HelpCircle,
-  Upload,
-  FileArchive,
   Trash2,
 } from 'lucide-react';
 
