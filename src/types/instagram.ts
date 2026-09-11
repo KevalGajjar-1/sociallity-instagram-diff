@@ -6,6 +6,8 @@ export interface InstagramAccount {
   avatarUrl?: string;
   likesCount?: number;
   isVerified?: boolean;
+  statusType?: 'unfollowed' | 'suspected_blocked' | 'new_follower' | 'not_following_back' | 'fan' | 'mutual' | 'blocked_by_you';
+  detectionNote?: string;
 }
 
 export interface InstagramSnapshot {
@@ -26,6 +28,7 @@ export interface DiffResult {
   // Follower Diffs
   newFollowers: InstagramAccount[];
   lostFollowers: InstagramAccount[]; // unfollowed you
+  suspectedBlocked: InstagramAccount[]; // accounts that disappeared and may have blocked you or deactivated
 
   // Following Diffs
   newFollowing: InstagramAccount[];
@@ -50,15 +53,39 @@ export interface DiffResult {
   followBackRate: number; // percentage of followers who follow you back
 
   // Activity Timeline for charts
-  dailyActivity: {
-    date: string;
-    label: string;
-    discovery: number;
-    gained: number;
-    lost: number;
-    isPeak?: boolean;
-  }[];
+  dailyActivity: DailyActivityItem[];
+}
+
+export interface DailyActivityItem {
+  date: string;
+  label: string;
+  discovery: number;
+  gained: number;
+  lost: number;
+  isPeak?: boolean;
+}
+
+export interface SnapshotHistoryItem {
+  id: string;
+  date: string;
+  label: string;
+  fileName: string;
+  followersCount: number;
+  followingCount: number;
+  netChange: number;
+  status: 'Ready' | 'Archived' | 'Scheduled';
+  format: 'JSON' | 'HTML';
 }
 
 export type ViewTab = 'dashboard' | 'overview' | 'schedule' | 'analytics';
-export type FilterListType = 'new_followers' | 'lost_followers' | 'not_following_back' | 'fans' | 'mutuals' | 'all_followers' | 'all_following';
+export type FilterListType =
+  | 'new_followers'
+  | 'lost_followers'
+  | 'suspected_blocked'
+  | 'not_following_back'
+  | 'fans'
+  | 'mutuals'
+  | 'all_followers'
+  | 'all_following';
+
+

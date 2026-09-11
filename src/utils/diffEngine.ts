@@ -114,6 +114,7 @@ export function computeDiff(
     newSnapshot,
     newFollowers,
     lostFollowers,
+    suspectedBlocked: [],
     newFollowing,
     unfollowedByYou,
     notFollowingBack,
@@ -148,3 +149,38 @@ export function computeSingleSnapshotInsights(snapshot: InstagramSnapshot): Diff
 
   return computeDiff(oldSnapshot, snapshot);
 }
+
+/**
+ * Creates an empty initial DiffResult for when no data has been uploaded yet
+ */
+export function createEmptyDiff(): DiffResult {
+  const emptySnapshot: InstagramSnapshot = {
+    label: 'No Snapshot Uploaded',
+    followers: [],
+    following: [],
+  };
+
+  return {
+    oldSnapshot: emptySnapshot,
+    newSnapshot: emptySnapshot,
+    newFollowers: [],
+    lostFollowers: [],
+    suspectedBlocked: [],
+    newFollowing: [],
+    unfollowedByYou: [],
+    notFollowingBack: [],
+    fans: [],
+    mutuals: [],
+    followersOldCount: 0,
+    followersNewCount: 0,
+    followersNetChange: 0,
+    followersChangePercent: 0,
+    followingOldCount: 0,
+    followingNewCount: 0,
+    followingNetChange: 0,
+    followingChangePercent: 0,
+    followBackRate: 0,
+    dailyActivity: [],
+  };
+}
+

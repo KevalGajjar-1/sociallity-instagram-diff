@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, Upload, Sparkles, HelpCircle } from 'lucide-react';
+import { ChevronDown, Upload, HelpCircle } from 'lucide-react';
 
 const InstagramIcon: React.FC<{ size?: number }> = ({ size = 12 }) => (
   <svg
@@ -20,9 +20,8 @@ const InstagramIcon: React.FC<{ size?: number }> = ({ size = 12 }) => (
 
 interface HeroGreetingProps {
   userName: string;
-  isDemoMode: boolean;
+  hasData: boolean;
   onOpenUpload: () => void;
-  onToggleDemo: () => void;
   onOpenHowTo: () => void;
   timeRange: string;
   onTimeRangeChange: (range: string) => void;
@@ -30,9 +29,8 @@ interface HeroGreetingProps {
 
 export const HeroGreeting: React.FC<HeroGreetingProps> = ({
   userName,
-  isDemoMode,
+  hasData,
   onOpenUpload,
-  onToggleDemo,
   onOpenHowTo,
   timeRange,
   onTimeRangeChange,
@@ -43,11 +41,11 @@ export const HeroGreeting: React.FC<HeroGreetingProps> = ({
         <h1>
           Hi, {userName} <span role="img" aria-label="waving hand">👋</span>
         </h1>
-        <p>Let see your social media insight</p>
+        <p>{hasData ? 'Real-time Instagram data diff insights' : 'Upload your Instagram export ZIPs to view real insights'}</p>
       </div>
 
       <div className="hero-controls">
-        {/* Instagram Platform Badge / Dropdown */}
+        {/* Instagram Platform Badge */}
         <div className="dropdown-pill" title="Platform: Instagram">
           <span className="instagram-gradient-icon">
             <InstagramIcon size={12} />
@@ -82,16 +80,6 @@ export const HeroGreeting: React.FC<HeroGreetingProps> = ({
           <ChevronDown size={14} />
         </div>
 
-        {/* Demo / Real toggle */}
-        <button
-          className="btn-demo"
-          onClick={onToggleDemo}
-          title={isDemoMode ? 'Click to upload your own Instagram data' : 'Click to reset to Demo data'}
-        >
-          <Sparkles size={14} style={{ display: 'inline', marginRight: '6px', color: '#f59e0b' }} />
-          {isDemoMode ? 'Demo Data' : 'Custom Upload'}
-        </button>
-
         {/* How-to guide button */}
         <button
           className="icon-btn"
@@ -105,7 +93,7 @@ export const HeroGreeting: React.FC<HeroGreetingProps> = ({
         {/* Upload ZIP Action Button */}
         <button className="btn-upload-primary" onClick={onOpenUpload}>
           <Upload size={16} />
-          <span>Upload ZIPs</span>
+          <span>{hasData ? 'Upload New ZIPs' : 'Upload Instagram ZIPs'}</span>
         </button>
       </div>
     </section>
