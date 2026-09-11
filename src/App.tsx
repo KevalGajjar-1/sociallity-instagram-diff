@@ -5,7 +5,7 @@ import { HeroGreeting } from './components/HeroGreeting';
 import { MetricCards } from './components/MetricCards';
 import { ProfileDiscoveryChart } from './components/ProfileDiscoveryChart';
 import { BiggestFansCard } from './components/BiggestFansCard';
-import { UploadModal } from './components/UploadModal';
+import { ZipUploader } from './components/ZipUploader';
 import { HowToGuideModal } from './components/HowToGuideModal';
 import { DataTable, DataTableColumn, DataTableFilter } from './components/DataTable';
 import { createEmptyDiff } from './utils/diffEngine';
@@ -124,6 +124,15 @@ export const App: React.FC = () => {
 
   // Reference for smooth scroll to inline table
   const syncTableRef = useRef<HTMLDivElement>(null);
+  const uploaderRef = useRef<HTMLDivElement>(null);
+
+  const handleOpenUpload = () => {
+    setCurrentTab('dashboard');
+    setIsUploadOpen(true);
+    setTimeout(() => {
+      uploaderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  };
 
   // Active diff fallback to prevent null crashes
   const activeDiff: DiffResult = diff || createEmptyDiff();
@@ -719,7 +728,7 @@ export const App: React.FC = () => {
         }}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-        onOpenSettings={() => setIsUploadOpen(true)}
+        onOpenSettings={handleOpenUpload}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
@@ -753,7 +762,7 @@ export const App: React.FC = () => {
         <HeroGreeting
           userName={userProfile.name}
           hasData={!!diff}
-          onOpenUpload={() => setIsUploadOpen(true)}
+          onOpenUpload={handleOpenUpload}
           onOpenHowTo={() => setIsHowToOpen(true)}
           timeRange={timeRange}
           onTimeRangeChange={(val) => setTimeRange(val)}
@@ -850,49 +859,17 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Initial Empty State when no export ZIP has been uploaded yet */}
-        {!diff && (
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '48px 24px',
-              textAlign: 'center',
-              boxShadow: 'var(--shadow-md)',
-              marginBottom: '28px',
-            }}
-          >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                background: 'rgba(139, 92, 246, 0.1)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
+        {/* Inline ZIP Uploader - Displayed directly on page (NO popup modal) */}
+        {(!diff || isUploadOpen) && (
+          <div ref={uploaderRef}>
+            <ZipUploader
+              onDiffCalculated={(newDiff) => {
+                handleCustomDiff(newDiff);
+                setIsUploadOpen(false);
               }}
-            >
-              <FileArchive size={32} color="var(--accent-purple)" />
-            </div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 800, marginBottom: 8 }}>
-              Upload Your Instagram Exports to Begin
-            </h2>
-            <p style={{ color: 'var(--text-muted)', maxWidth: 520, margin: '0 auto 24px auto', fontSize: '0.9rem', lineHeight: 1.5 }}>
-              Compare two Instagram ZIP exports to see exactly who unfollowed you, who blocked you, new followers, and fans with 100% privacy on your device.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <button className="btn-upload-primary" onClick={() => setIsUploadOpen(true)} style={{ padding: '10px 24px' }}>
-                <Upload size={16} />
-                <span>Upload Instagram ZIPs</span>
-              </button>
-              <button className="btn-demo" onClick={() => setIsHowToOpen(true)}>
-                <HelpCircle size={16} />
-                <span>How to Download Export</span>
-              </button>
-            </div>
+              onClose={diff ? () => setIsUploadOpen(false) : undefined}
+              canClose={!!diff}
+            />
           </div>
         )}
 
@@ -1289,7 +1266,7 @@ export const App: React.FC = () => {
                 </p>
               </div>
 
-              <button className="btn-upload-primary" onClick={() => setIsUploadOpen(true)}>
+              <button className="btn-upload-primary" onClick={handleOpenUpload}>
                 <FileCheck size={16} />
                 <span>Upload New ZIP Export</span>
               </button>
@@ -1434,12 +1411,7 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Modals - Only Guide & Real File Upload, NO popup modal for tables */}
-      <UploadModal
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
-        onDiffCalculated={handleCustomDiff}
-      />
+      {/* Modals - Guide modal only, Upload is rendered inline directly on the page */}
 
       <HowToGuideModal
         isOpen={isHowToOpen}
