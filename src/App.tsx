@@ -761,12 +761,6 @@ export const App: React.FC = () => {
 
         {/* Privacy & Detection Callout Banner */}
         <div className="privacy-banner">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShieldCheck size={18} color="var(--accent-purple)" />
-            <span>
-              <strong>Private & Local Diff Engine:</strong> Real data calculated from your uploaded Meta exports directly in your browser memory.
-            </span>
-          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span
               className="privacy-link"
