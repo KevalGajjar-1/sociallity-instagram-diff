@@ -761,18 +761,36 @@ export const App: React.FC = () => {
 
         {/* Privacy & Detection Callout Banner */}
         <div className="privacy-banner">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span
-              className="privacy-link"
-              onClick={() => setShowBlockInfo(!showBlockInfo)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+              width: '100%',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px 18px',
+                flexWrap: 'wrap',
+              }}
             >
-              <HelpCircle size={14} />
-              {showBlockInfo ? 'Hide Detection Guide' : 'How Block/Unfollow is detected?'}
-            </span>
-            <span className="privacy-link" onClick={() => setIsHowToOpen(true)}>
-              How to get export ZIP?
-            </span>
+              <span
+                className="privacy-link"
+                onClick={() => setShowBlockInfo(!showBlockInfo)}
+              >
+                <HelpCircle size={14} style={{ flexShrink: 0 }} />
+                <span>{showBlockInfo ? 'Hide Detection Guide' : 'How Block/Unfollow is detected?'}</span>
+              </span>
+              <span className="privacy-link" onClick={() => setIsHowToOpen(true)}>
+                How to get export ZIP?
+              </span>
+            </div>
+
             {diff && (
               <button
                 onClick={handleClearData}
@@ -785,10 +803,11 @@ export const App: React.FC = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
+                  padding: '4px 0',
                 }}
                 title="Clear current data session"
               >
-                <Trash2 size={13} />
+                <Trash2 size={13} style={{ flexShrink: 0 }} />
                 Clear Data
               </button>
             )}

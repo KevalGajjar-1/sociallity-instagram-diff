@@ -601,7 +601,7 @@ input:checked + .slider:before {
   background: linear-gradient(90deg, rgba(168, 85, 247, 0.08) 0%, rgba(244, 63, 133, 0.08) 100%);
   border: 1px solid rgba(168, 85, 247, 0.2);
   border-radius: var(--radius-md);
-  padding: 10px 18px;
+  padding: 12px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -610,6 +610,9 @@ input:checked + .slider:before {
   color: var(--text-secondary);
   gap: 12px;
   flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .privacy-banner strong {
@@ -621,7 +624,15 @@ input:checked + .slider:before {
   text-decoration: underline;
   cursor: pointer;
   font-weight: 600;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  transition: color 0.15s ease;
+}
+
+.privacy-link:hover {
+  color: var(--accent-pink);
 }
 
 /* Metric Cards Grid */
