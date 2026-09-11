@@ -9,6 +9,7 @@ import { UploadModal } from './components/UploadModal';
 import { HowToGuideModal } from './components/HowToGuideModal';
 import { DataTable, DataTableColumn, DataTableFilter } from './components/DataTable';
 import { createEmptyDiff } from './utils/diffEngine';
+import { getStoredDiff, saveStoredDiff, clearStoredDiff } from './utils/storage';
 import {
   DiffResult,
   FilterListType,
@@ -51,14 +52,31 @@ export const App: React.FC = () => {
 
   // Real Data State: loads saved diff or starts null without any mock data
   const [diff, setDiff] = useState<DiffResult | null>(() => {
-    const saved = localStorage.getItem('sociality_active_diff');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('sociality_active_diff');
+      if (saved) {
         return JSON.parse(saved);
-      } catch {}
-    }
+      }
+    } catch {}
     return null;
   });
+
+  // Asynchronously load saved diff from IndexedDB on startup (and migrate legacy localStorage)
+  useEffect(() => {
+    let isMounted = true;
+    getStoredDiff()
+      .then((saved) => {
+        if (isMounted && saved) {
+          setDiff(saved);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load active diff from storage:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const [timeRange, setTimeRange] = useState<string>('30 Days');
 
@@ -150,7 +168,9 @@ export const App: React.FC = () => {
 
   const handleCustomDiff = (newDiff: DiffResult) => {
     setDiff(newDiff);
-    localStorage.setItem('sociality_active_diff', JSON.stringify(newDiff));
+    saveStoredDiff(newDiff).catch((err) => {
+      console.warn('Failed to save active diff to storage:', err);
+    });
     triggerAjaxSync('lost_followers');
 
     // Create real historical entry
@@ -174,7 +194,11 @@ export const App: React.FC = () => {
 
     setSnapshotHistory((prev) => {
       const updated = [newRecord, ...prev];
-      localStorage.setItem('sociality_snapshot_history', JSON.stringify(updated));
+      try {
+        localStorage.setItem('sociality_snapshot_history', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed to save snapshot history to localStorage:', err);
+      }
       return updated;
     });
   };
@@ -182,7 +206,9 @@ export const App: React.FC = () => {
   const handleClearData = () => {
     if (window.confirm('Clear active Instagram data session? You can re-upload your ZIP files anytime.')) {
       setDiff(null);
-      localStorage.removeItem('sociality_active_diff');
+      clearStoredDiff().catch((err) => {
+        console.warn('Failed to clear diff from storage:', err);
+      });
     }
   };
 
