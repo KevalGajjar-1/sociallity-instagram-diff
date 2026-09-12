@@ -11,7 +11,6 @@ import {
   Lock,
   Globe,
   Mail,
-  ArrowRight,
   Sparkles,
   Clock,
   Database,

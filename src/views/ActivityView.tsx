@@ -4,7 +4,6 @@ import {
   MessageSquare,
   Bookmark,
   Image as ImageIcon,
-  ExternalLink,
   Calendar,
   X,
   Eye,

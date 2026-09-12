@@ -609,7 +609,7 @@ export async function buildSnapshotFromEntries(
       const content = await entry.readText();
       const info = parseProfileInfoJson(content);
       if (info) {
-        profileInfo = profileInfo ? { ...profileInfo, ...info } : info;
+        profileInfo = profileInfo ? Object.assign({}, profileInfo, info) : info;
       }
     }
     else if (fileName.includes('profile_photo')) {
