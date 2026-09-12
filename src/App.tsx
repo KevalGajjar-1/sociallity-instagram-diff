@@ -21,7 +21,7 @@ import {
   ViewTab,
   SnapshotHistoryItem,
 } from './types/instagram';
-import { AlertTriangle, Trash2, ShieldCheck, HelpCircle } from 'lucide-react';
+import { AlertTriangle, Trash2, ShieldCheck } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Theme state
