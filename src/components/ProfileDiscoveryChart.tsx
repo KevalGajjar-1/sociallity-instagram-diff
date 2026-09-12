@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingDown, ChevronDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { DiffResult } from '../types/instagram';
 
 interface ProfileDiscoveryChartProps {
@@ -7,31 +7,43 @@ interface ProfileDiscoveryChartProps {
 }
 
 export const ProfileDiscoveryChart: React.FC<ProfileDiscoveryChartProps> = ({ diff }) => {
-  // Default selected bar is index 4 ('Dec 4') matching the mockup screenshot
-  const [selectedIdx, setSelectedIdx] = useState<number>(4);
+  const [selectedIdx, setSelectedIdx] = useState<number>(0);
 
-  const maxVal = 20000;
-  const yLabels = ['20k', '15k', '10k', '5k', '1k', '0'];
+  const activities = diff.dailyActivity.length > 0 ? diff.dailyActivity : [
+    { date: 'Interval', label: 'Followers', discovery: diff.followersNewCount || 100, gained: diff.newFollowers.length, lost: diff.lostFollowers.length },
+  ];
+
+  const highestDiscovery = Math.max(...activities.map((d) => d.discovery), 10);
+  const maxVal = Math.ceil(highestDiscovery * 1.2);
+
+  const yLabels = [
+    maxVal >= 1000 ? `${(maxVal / 1000).toFixed(0)}k` : `${maxVal}`,
+    maxVal >= 1000 ? `${((maxVal * 0.75) / 1000).toFixed(0)}k` : `${Math.round(maxVal * 0.75)}`,
+    maxVal >= 1000 ? `${((maxVal * 0.5) / 1000).toFixed(0)}k` : `${Math.round(maxVal * 0.5)}`,
+    maxVal >= 1000 ? `${((maxVal * 0.25) / 1000).toFixed(0)}k` : `${Math.round(maxVal * 0.25)}`,
+    '0',
+  ];
+
+  const isGrowthPositive = diff.followersNetChange >= 0;
 
   return (
     <div className="discovery-card">
       {/* Header */}
       <div className="discovery-header">
         <div className="discovery-title-group">
-          <h2 className="discovery-title">Profile Discovery</h2>
-          <span className="pill-badge negative">
-            <TrendingDown size={12} />
-            <span>28.49%</span>
+          <h2 className="discovery-title">Follower Velocity & Activity</h2>
+          <span className={`pill-badge ${isGrowthPositive ? 'positive' : 'negative'}`}>
+            {isGrowthPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+            <span>{Math.abs(diff.followersChangePercent)}%</span>
             <span className="pill-badge-sub">
-              From last month
+              {isGrowthPositive ? 'Net Growth' : 'Net Decline'}
             </span>
           </span>
         </div>
 
         <div className="chart-header-actions">
           <div className="dropdown-pill dropdown-pill-sm">
-            <span>30 Days</span>
-            <ChevronDown size={14} />
+            <span>{activities.length} Intervals</span>
           </div>
         </div>
       </div>
@@ -40,8 +52,8 @@ export const ProfileDiscoveryChart: React.FC<ProfileDiscoveryChartProps> = ({ di
       <div className="discovery-chart-container">
         {/* Y Axis */}
         <div className="chart-y-axis">
-          {yLabels.map((lbl) => (
-            <span key={lbl}>{lbl}</span>
+          {yLabels.map((lbl, i) => (
+            <span key={i}>{lbl}</span>
           ))}
         </div>
 
@@ -54,14 +66,17 @@ export const ProfileDiscoveryChart: React.FC<ProfileDiscoveryChartProps> = ({ di
 
         {/* Bars */}
         <div className="bars-container">
-          {diff.dailyActivity.map((item, idx) => {
+          {activities.map((item, idx) => {
             const isSelected = selectedIdx === idx;
-            const heightPercent = Math.max(8, Math.min(95, (item.discovery / maxVal) * 100));
-            const formattedVal = `${(item.discovery / 1000).toFixed(1).replace('.0', '')}K`;
+            const heightPercent = Math.max(12, Math.min(95, (item.discovery / maxVal) * 100));
+            const formattedVal =
+              item.discovery >= 1000
+                ? `${(item.discovery / 1000).toFixed(1)}k`
+                : `${item.discovery}`;
 
             return (
               <div
-                key={item.label}
+                key={idx}
                 className="bar-col"
                 onClick={() => setSelectedIdx(idx)}
                 onMouseEnter={() => setSelectedIdx(idx)}
@@ -79,7 +94,7 @@ export const ProfileDiscoveryChart: React.FC<ProfileDiscoveryChartProps> = ({ di
                     if (el) el.style.setProperty('--bar-height', `${heightPercent}%`);
                   }}
                   className={`bar-pill ${isSelected ? 'striped-active' : ''}`}
-                  title={`${item.label}: ${item.discovery.toLocaleString()} views`}
+                  title={`${item.label}: ${item.discovery.toLocaleString()} points (${item.gained} gained, ${item.lost} lost)`}
                 />
 
                 {/* Label */}

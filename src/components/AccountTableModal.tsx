@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, ExternalLink, Copy, Check, ShieldCheck } from 'lucide-react';
 import { DiffResult, FilterListType, InstagramAccount } from '../types/instagram';
 import { DataTable, DataTableColumn } from './DataTable';
+import { UserAvatar } from './UserAvatar';
 
 interface AccountTableModalProps {
   isOpen: boolean;
@@ -69,6 +70,11 @@ export const AccountTableModal: React.FC<AccountTableModalProps> = ({
       categoryLabel = 'Following';
       badgeClass = 'table-status-pill-blue';
       break;
+    default:
+      currentList = diff.lostFollowers;
+      categoryLabel = 'Account';
+      badgeClass = 'table-status-pill-purple';
+      break;
   }
 
   const copyToClipboard = (username: string) => {
@@ -86,11 +92,7 @@ export const AccountTableModal: React.FC<AccountTableModalProps> = ({
       accessor: (item) => item.name || item.username,
       render: (item) => (
         <div className="table-account-cell">
-          <img
-            src={item.avatarUrl || `https://api.dicebear.com/7.x/notionists-neutral/svg?seed=${item.username}`}
-            alt={item.username}
-            className="table-account-avatar"
-          />
+          <UserAvatar src={item.avatarUrl} username={item.username} size={34} className="table-account-avatar" />
           <div>
             <div className="table-account-name-row">
               <span className="table-account-name">

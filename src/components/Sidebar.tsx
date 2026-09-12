@@ -1,19 +1,15 @@
 import React from 'react';
 import {
   LayoutDashboard,
-  LayoutGrid,
-  Calendar,
-  BarChart3,
-  User,
-  Rocket,
-  Grid,
-  MoreHorizontal,
-  Settings,
-  LogOut,
+  Users,
+  ShieldAlert,
+  Heart,
+  UserCheck,
   Moon,
   Sun,
   X,
   Layers,
+  Sparkles,
 } from 'lucide-react';
 import { ViewTab } from '../types/instagram';
 
@@ -22,9 +18,11 @@ interface SidebarProps {
   onSelectTab: (tab: ViewTab) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
-  onOpenSettings: () => void;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  unfollowersCount?: number;
+  blockedCount?: number;
+  likesCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -32,9 +30,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   isDarkMode,
   onToggleDarkMode,
-  onOpenSettings,
   isOpenMobile = false,
   onCloseMobile,
+  unfollowersCount = 0,
+  blockedCount = 0,
+  likesCount = 0,
 }) => {
   const handleNavClick = (tab: ViewTab) => {
     onSelectTab(tab);
@@ -55,12 +55,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         className={`sidebar ${isOpenMobile ? 'open' : ''}`}
         aria-label="Main Navigation"
       >
-        {/* Brand & Toggle / Close */}
+        {/* Brand Header */}
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            <span>Sociality</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={18} color="var(--accent-purple)" />
+              Sociality
+            </span>
           </div>
-          
+
           {/* Mobile close button */}
           <button
             className="sidebar-close-mobile-btn"
@@ -77,8 +80,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Main Menu */}
-        <div className="sidebar-section-title">Main Menu</div>
+        {/* Intelligence Navigation */}
+        <div className="sidebar-section-title">Analytics & Diffs</div>
         <nav className="sidebar-nav-group">
           <button
             className={`sidebar-nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
@@ -89,104 +92,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
 
           <button
-            className={`sidebar-nav-item ${currentTab === 'overview' ? 'active' : ''}`}
-            onClick={() => handleNavClick('overview')}
+            className={`sidebar-nav-item ${currentTab === 'relationships' || currentTab === 'overview' ? 'active' : ''}`}
+            onClick={() => handleNavClick('relationships')}
           >
-            <LayoutGrid size={18} />
-            <span>Overview</span>
+            <Users size={18} />
+            <span>Relationships</span>
+            {unfollowersCount > 0 && (
+              <span className="sidebar-badge text-red" style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 6px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontWeight: 600 }}>
+                -{unfollowersCount}
+              </span>
+            )}
           </button>
 
           <button
-            className={`sidebar-nav-item ${currentTab === 'schedule' ? 'active' : ''}`}
-            onClick={() => handleNavClick('schedule')}
+            className={`sidebar-nav-item ${currentTab === 'connections' ? 'active' : ''}`}
+            onClick={() => handleNavClick('connections')}
           >
-            <Calendar size={18} />
-            <span>Schedule</span>
+            <ShieldAlert size={18} />
+            <span>Connections & Privacy</span>
+            {blockedCount > 0 && (
+              <span className="sidebar-badge" style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 6px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', fontWeight: 600 }}>
+                {blockedCount}
+              </span>
+            )}
           </button>
 
           <button
-            className={`sidebar-nav-item ${currentTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => handleNavClick('analytics')}
+            className={`sidebar-nav-item ${currentTab === 'activity' ? 'active' : ''}`}
+            onClick={() => handleNavClick('activity')}
           >
-            <BarChart3 size={18} />
-            <span>Analytics</span>
+            <Heart size={18} />
+            <span>Activity & Content</span>
+            {likesCount > 0 && (
+              <span className="sidebar-badge" style={{ marginLeft: 'auto', fontSize: '11px', padding: '2px 6px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', fontWeight: 600 }}>
+                {likesCount > 999 ? `${(likesCount / 1000).toFixed(1)}k` : likesCount}
+              </span>
+            )}
           </button>
         </nav>
 
-        {/* My Account */}
-        <div className="sidebar-section-title">My Account</div>
-        <div className="sidebar-nav-group">
+        {/* Account & Data Vault */}
+        <div className="sidebar-section-title">Data Management</div>
+        <nav className="sidebar-nav-group">
           <button
-            className="sidebar-nav-item"
-            onClick={() => {
-              onOpenSettings();
-              onCloseMobile?.();
-            }}
+            className={`sidebar-nav-item ${currentTab === 'profile_vault' || currentTab === 'schedule' ? 'active' : ''}`}
+            onClick={() => handleNavClick('profile_vault')}
           >
-            <User size={18} />
-            <span>Account</span>
+            <UserCheck size={18} />
+            <span>Profile & Vault</span>
           </button>
-
-          <button
-            className="sidebar-nav-item"
-            onClick={() => {
-              onOpenSettings();
-              onCloseMobile?.();
-            }}
-          >
-            <Rocket size={18} />
-            <span>Boosted Post</span>
-          </button>
-
-          <button
-            className="sidebar-nav-item"
-            onClick={() => {
-              onOpenSettings();
-              onCloseMobile?.();
-            }}
-          >
-            <Grid size={18} />
-            <span>Published Post</span>
-          </button>
-
-          <button
-            className="sidebar-nav-item"
-            onClick={() => {
-              onOpenSettings();
-              onCloseMobile?.();
-            }}
-          >
-            <MoreHorizontal size={18} />
-            <span>More</span>
-          </button>
-        </div>
-
-        {/* More Options */}
-        <div className="sidebar-section-title">More</div>
-        <div className="sidebar-nav-group">
-          <button
-            className="sidebar-nav-item"
-            onClick={() => {
-              onOpenSettings();
-              onCloseMobile?.();
-            }}
-          >
-            <Settings size={18} />
-            <span>Settings</span>
-          </button>
-
-          <button
-            className="sidebar-nav-item"
-            onClick={() => {
-              if (window.confirm('Reset current session and reload demo?')) {
-                window.location.reload();
-              }
-            }}
-          >
-            <LogOut size={18} />
-            <span>Logout</span>
-          </button>
-        </div>
+        </nav>
 
         {/* Footer: Dark Mode Toggle */}
         <div className="sidebar-footer">

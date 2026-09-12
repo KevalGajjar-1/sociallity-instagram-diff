@@ -1,5 +1,4 @@
-import React from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, UserMinus } from 'lucide-react';
 import { DiffResult } from '../types/instagram';
 
 interface MetricCardsProps {
@@ -8,10 +7,17 @@ interface MetricCardsProps {
 }
 
 export const MetricCards: React.FC<MetricCardsProps> = ({ diff, onCardClick }) => {
-  // Format numbers nicely (e.g. 180.024 with dot or comma formatting matching the mockup)
   const formatStat = (num: number): string => {
-    return num.toLocaleString('de-DE'); // Formats 180024 as 180.024
+    return num.toLocaleString();
   };
+
+  const isFollowerGrowth = diff.followersNetChange >= 0;
+  const isFollowingGrowth = diff.followingNetChange >= 0;
+
+  const unfollowRate =
+    diff.followersOldCount > 0
+      ? ((diff.lostFollowers.length / diff.followersOldCount) * 100).toFixed(1)
+      : '0.0';
 
   return (
     <div className="metric-cards-grid">
@@ -19,7 +25,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ diff, onCardClick }) =
       <div
         className="metric-card metric-card-interactive"
         onClick={() => onCardClick?.('followers')}
-        title="Click to view follower details"
+        title="Click to inspect all followers"
       >
         <div className="metric-card-header">
           <span className="metric-card-title">Total Followers</span>
@@ -28,24 +34,24 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ diff, onCardClick }) =
         <div className="metric-card-body">
           <span className="metric-main-value">{formatStat(diff.followersNewCount)}</span>
           <span
-            className={`pill-badge ${diff.followersNetChange >= 0 ? 'positive' : 'negative'}`}
+            className={`pill-badge ${isFollowerGrowth ? 'positive' : 'negative'}`}
           >
-            {diff.followersNetChange >= 0 ? (
+            {isFollowerGrowth ? (
               <TrendingUp size={12} />
             ) : (
               <TrendingDown size={12} />
             )}
             <span>
-              {diff.followersNetChange >= 0 ? '+' : ''}
+              {isFollowerGrowth ? '+' : ''}
               {diff.followersChangePercent}%
             </span>
           </span>
         </div>
 
         <div className="metric-subtitle">
-          {diff.followersNetChange >= 0
-            ? `followers was up ${Math.abs(diff.followersChangePercent * 3.5).toFixed(1)}%`
-            : `followers was down ${Math.abs(diff.followersChangePercent).toFixed(1)}%`}
+          {isFollowerGrowth
+            ? `+${diff.followersNetChange.toLocaleString()} net followers gained`
+            : `${diff.followersNetChange.toLocaleString()} net follower change`}
         </div>
 
         {/* SVG Sparkline: Cyan-Sky Blue Gradient Wave */}
@@ -72,25 +78,34 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ diff, onCardClick }) =
         </div>
       </div>
 
-      {/* 2. Profile Visit / Following Card */}
+      {/* 2. Total Following Card */}
       <div
         className="metric-card metric-card-interactive"
         onClick={() => onCardClick?.('following')}
-        title="Click to view following details"
+        title="Click to inspect all following"
       >
         <div className="metric-card-header">
-          <span className="metric-card-title">Profile Visit</span>
+          <span className="metric-card-title">Total Following</span>
         </div>
 
         <div className="metric-card-body">
-          <span className="metric-main-value">28.024</span>
-          <span className="pill-badge positive">
-            <TrendingUp size={12} />
-            <span>1.29%</span>
+          <span className="metric-main-value">{formatStat(diff.followingNewCount)}</span>
+          <span className={`pill-badge ${isFollowingGrowth ? 'positive' : 'negative'}`}>
+            {isFollowingGrowth ? (
+              <TrendingUp size={12} />
+            ) : (
+              <TrendingDown size={12} />
+            )}
+            <span>
+              {isFollowingGrowth ? '+' : ''}
+              {diff.followingChangePercent}%
+            </span>
           </span>
         </div>
 
-        <div className="metric-subtitle">Profile visits was down 1.5%</div>
+        <div className="metric-subtitle">
+          {diff.followBackRate}% mutual follow-back rate
+        </div>
 
         {/* SVG Sparkline: Violet-Purple Gradient Wave */}
         <div className="metric-sparkline-wrap">
@@ -116,25 +131,29 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ diff, onCardClick }) =
         </div>
       </div>
 
-      {/* 3. Account Reach Card */}
+      {/* 3. Lost Followers Card */}
       <div
         className="metric-card metric-card-interactive"
         onClick={() => onCardClick?.('unfollowers')}
-        title="Click to view reach & unfollowers"
+        title="Click to inspect lost followers"
       >
         <div className="metric-card-header">
-          <span className="metric-card-title">Account Reach</span>
+          <span className="metric-card-title">Lost Followers (Unfollowed)</span>
         </div>
 
         <div className="metric-card-body">
-          <span className="metric-main-value">892.024</span>
+          <span className="metric-main-value text-red">
+            {formatStat(diff.lostFollowers.length)}
+          </span>
           <span className="pill-badge negative">
-            <TrendingDown size={12} />
-            <span>0.49%</span>
+            <UserMinus size={12} />
+            <span>{unfollowRate}%</span>
           </span>
         </div>
 
-        <div className="metric-subtitle">Your reach was up 10.1%</div>
+        <div className="metric-subtitle">
+          {diff.lostFollowers.length} accounts stopped following you
+        </div>
 
         {/* SVG Sparkline: Magenta-Hot Pink Gradient Wave */}
         <div className="metric-sparkline-wrap">

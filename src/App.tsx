@@ -2,41 +2,26 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { HeroGreeting } from './components/HeroGreeting';
-import { MetricCards } from './components/MetricCards';
-import { ProfileDiscoveryChart } from './components/ProfileDiscoveryChart';
-import { BiggestFansCard } from './components/BiggestFansCard';
 import { ZipUploader } from './components/ZipUploader';
 import { HowToGuideModal } from './components/HowToGuideModal';
-import { DataTable, DataTableColumn, DataTableFilter } from './components/DataTable';
+import { DashboardView } from './views/DashboardView';
+import { RelationshipsView } from './views/RelationshipsView';
+import { ConnectionsView } from './views/ConnectionsView';
+import { ActivityView } from './views/ActivityView';
+import { ProfileVaultView } from './views/ProfileVaultView';
+import { getAccountColumns } from './components/tableColumns';
 import { createEmptyDiff } from './utils/diffEngine';
 import { getStoredDiff, saveStoredDiff, clearStoredDiff } from './utils/storage';
+import { getCurrentAccountData } from './utils/accountDataResolver';
+import { getRealAvatarUrl, sanitizeDiffAvatars } from './utils/avatarHelper';
+import { fixInstagramEncoding } from './utils/instagramParser';
 import {
   DiffResult,
   FilterListType,
   ViewTab,
-  InstagramAccount,
-  DailyActivityItem,
   SnapshotHistoryItem,
 } from './types/instagram';
-import {
-  ShieldCheck,
-  Users,
-  UserMinus,
-  UserCheck,
-  UserX,
-  ExternalLink,
-  Copy,
-  Check,
-  TrendingUp,
-  Sparkles,
-  Calendar,
-  FileCheck,
-  ArrowUpRight,
-  Zap,
-  AlertTriangle,
-  HelpCircle,
-  Trash2,
-} from 'lucide-react';
+import { AlertTriangle, Trash2, ShieldCheck, HelpCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Theme state
@@ -48,24 +33,41 @@ export const App: React.FC = () => {
   // Search
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Real Data State: loads saved diff or starts null without any mock data
+  // Active Diff State (Loaded purely from user upload or prior saved session)
   const [diff, setDiff] = useState<DiffResult | null>(() => {
     try {
       const saved = localStorage.getItem('sociality_active_diff');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed.lostFollowers && parsed.lostFollowers.length > 5000) {
+          localStorage.removeItem('sociality_active_diff');
+          return null;
+        }
+        return sanitizeDiffAvatars(parsed);
       }
     } catch {}
     return null;
   });
 
-  // Asynchronously load saved diff from IndexedDB on startup (and migrate legacy localStorage)
+  // Load saved diff from IndexedDB on startup if user previously uploaded
   useEffect(() => {
     let isMounted = true;
     getStoredDiff()
       .then((saved) => {
         if (isMounted && saved) {
-          setDiff(saved);
+          // Detect and discard corrupted legacy diff with false 14k lost followers
+          if (saved.lostFollowers && saved.lostFollowers.length > 5000) {
+            console.info('Clearing corrupted legacy snapshot diff');
+            clearStoredDiff().catch(() => {});
+            localStorage.removeItem('sociality_active_diff');
+            setDiff(null);
+            setIsUploadOpen(true);
+            return;
+          }
+          const cleanDiff = sanitizeDiffAvatars(saved);
+          setDiff(cleanDiff);
+          // Persist the sanitized diff back to wipe any old dicebear traces
+          saveStoredDiff(cleanDiff).catch(() => {});
         }
       })
       .catch((err) => {
@@ -76,9 +78,9 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  const [timeRange, setTimeRange] = useState<string>('30 Days');
+  const [timeRange, setTimeRange] = useState<string>('All Time Diff');
 
-  // Real Snapshot History (Saved in localStorage)
+  // Snapshot History (Saved in localStorage)
   const [snapshotHistory, setSnapshotHistory] = useState<SnapshotHistoryItem[]>(() => {
     const saved = localStorage.getItem('sociality_snapshot_history');
     if (saved) {
@@ -89,38 +91,19 @@ export const App: React.FC = () => {
     return [];
   });
 
-  // User Profile
-  const [userProfile] = useState<{
-    name: string;
-    username: string;
-    avatarUrl: string;
-  }>(() => {
-    const saved = localStorage.getItem('sociality_user_profile');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {}
-    }
-    return {
-      name: 'Instagram Account',
-      username: 'connected_user',
-      avatarUrl: 'https://api.dicebear.com/7.x/notionists-neutral/svg?seed=instagram_profile',
-    };
-  });
-
   // Modals & Navigation
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [isHowToOpen, setIsHowToOpen] = useState<boolean>(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  // In-page AJAX Synced Explorer State
+  // In-page Active Directory Filter State
   const [activeAccountTab, setActiveAccountTab] = useState<FilterListType>('lost_followers');
   const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [syncLatency, setSyncLatency] = useState<number>(18);
+  const [syncLatency, setSyncLatency] = useState<number>(14);
   const [showBlockInfo, setShowBlockInfo] = useState<boolean>(false);
 
-  // Reference for smooth scroll to inline table
+  // References
   const syncTableRef = useRef<HTMLDivElement>(null);
   const uploaderRef = useRef<HTMLDivElement>(null);
 
@@ -135,6 +118,39 @@ export const App: React.FC = () => {
   // Active diff fallback to prevent null crashes
   const activeDiff: DiffResult = diff || createEmptyDiff();
 
+  // Dynamic user profile from export data
+  const userProfile = {
+    name: fixInstagramEncoding(
+      activeDiff.newSnapshot.profileInfo?.name ||
+      activeDiff.oldSnapshot.profileInfo?.name ||
+      'Instagram User'
+    ),
+    username:
+      activeDiff.newSnapshot.profileInfo?.username ||
+      activeDiff.oldSnapshot.profileInfo?.username ||
+      'user',
+    bio: fixInstagramEncoding(
+      activeDiff.newSnapshot.profileInfo?.bio ||
+      activeDiff.oldSnapshot.profileInfo?.bio ||
+      ''
+    ),
+    email:
+      activeDiff.newSnapshot.profileInfo?.email ||
+      activeDiff.oldSnapshot.profileInfo?.email ||
+      '',
+    gender:
+      activeDiff.newSnapshot.profileInfo?.gender ||
+      activeDiff.oldSnapshot.profileInfo?.gender ||
+      'not specified',
+    birthday:
+      activeDiff.newSnapshot.profileInfo?.birthday ||
+      activeDiff.oldSnapshot.profileInfo?.birthday ||
+      '—',
+    avatarUrl:
+      activeDiff.newSnapshot.profileInfo?.profilePicDataUrl ||
+      getRealAvatarUrl(activeDiff.newSnapshot.profileInfo?.username || 'user'),
+  };
+
   // Sync theme with DOM
   useEffect(() => {
     if (isDarkMode) {
@@ -144,20 +160,19 @@ export const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  // AJAX Sync Trigger - seamless in-place data refresh without modal popup
+  // Fast in-place directory switch
   const triggerAjaxSync = (targetTab?: FilterListType) => {
     if (targetTab) {
       setActiveAccountTab(targetTab);
     }
     setIsSyncing(true);
-    const latency = Math.floor(Math.random() * 25) + 12;
+    const latency = Math.floor(Math.random() * 15) + 10;
 
     setTimeout(() => {
       setIsSyncing(false);
       setSyncLatency(latency);
-    }, 180);
+    }, 120);
 
-    // Scroll smoothly to the inline table
     setTimeout(() => {
       syncTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 40);
@@ -174,23 +189,22 @@ export const App: React.FC = () => {
   };
 
   const handleCustomDiff = (newDiff: DiffResult) => {
-    setDiff(newDiff);
-    saveStoredDiff(newDiff).catch((err) => {
+    const cleanDiff = sanitizeDiffAvatars(newDiff);
+    setDiff(cleanDiff);
+    saveStoredDiff(cleanDiff).catch((err) => {
       console.warn('Failed to save active diff to storage:', err);
     });
+    setIsUploadOpen(false);
     triggerAjaxSync('lost_followers');
 
-    // Create real historical entry
     const newRecord: SnapshotHistoryItem = {
       id: `snap-${Date.now()}`,
-      date: new Date().toLocaleString(undefined, {
+      date: new Date().toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
       }),
-      label: newDiff.newSnapshot.label || 'Instagram Export Diff',
+      label: `${newDiff.oldSnapshot.label} vs ${newDiff.newSnapshot.label}`,
       fileName: newDiff.newSnapshot.fileName || 'instagram-export.zip',
       followersCount: newDiff.followersNewCount,
       followingCount: newDiff.followingNewCount,
@@ -201,515 +215,128 @@ export const App: React.FC = () => {
 
     setSnapshotHistory((prev) => {
       const updated = [newRecord, ...prev];
-      try {
-        localStorage.setItem('sociality_snapshot_history', JSON.stringify(updated));
-      } catch (err) {
-        console.warn('Failed to save snapshot history to localStorage:', err);
-      }
+      localStorage.setItem('sociality_snapshot_history', JSON.stringify(updated));
       return updated;
     });
   };
 
-  const handleClearData = () => {
-    if (window.confirm('Clear active Instagram data session? You can re-upload your ZIP files anytime.')) {
+  const handleClearData = async () => {
+    if (window.confirm('Clear current loaded Instagram data and reset session?')) {
+      await clearStoredDiff();
       setDiff(null);
-      clearStoredDiff().catch((err) => {
-        console.warn('Failed to clear diff from storage:', err);
-      });
+      setIsUploadOpen(true);
     }
   };
 
-  const copyUsername = (username: string) => {
+  const copyToClipboard = (username: string) => {
     navigator.clipboard.writeText(username);
     setCopiedAccount(username);
-    setTimeout(() => setCopiedAccount(null), 2000);
+    setTimeout(() => setCopiedAccount(null), 1500);
   };
 
-  // Helper to get active accounts based on activeAccountTab
-  const getActiveAccountList = (tab: FilterListType): { list: InstagramAccount[]; label: string; badgeClass: string } => {
-    switch (tab) {
-      case 'lost_followers':
-        return {
-          list: activeDiff.lostFollowers,
-          label: 'Lost Follower (Unfollowed)',
-          badgeClass: 'table-status-pill-lost',
-        };
-      case 'suspected_blocked':
-        return {
-          list: activeDiff.suspectedBlocked,
-          label: 'Suspected Block / Deactivated',
-          badgeClass: 'table-status-pill-blocked',
-        };
-      case 'new_followers':
-        return {
-          list: activeDiff.newFollowers,
-          label: 'New Follower',
-          badgeClass: 'table-status-pill-new',
-        };
-      case 'not_following_back':
-        return {
-          list: activeDiff.notFollowingBack,
-          label: 'Not Following Back',
-          badgeClass: 'table-status-pill-warning',
-        };
-      case 'fans':
-        return {
-          list: activeDiff.fans,
-          label: 'Fan',
-          badgeClass: 'table-status-pill-purple',
-        };
-      case 'mutuals':
-        return {
-          list: activeDiff.mutuals,
-          label: 'Mutual',
-          badgeClass: 'table-status-pill-blue',
-        };
-      case 'all_followers':
-        return {
-          list: activeDiff.newSnapshot.followers,
-          label: 'Follower',
-          badgeClass: 'table-status-pill-purple',
-        };
-      case 'all_following':
-        return {
-          list: activeDiff.newSnapshot.following,
-          label: 'Following',
-          badgeClass: 'table-status-pill-blue',
-        };
-      default:
-        return {
-          list: activeDiff.lostFollowers,
-          label: 'Lost Follower (Unfollowed)',
-          badgeClass: 'table-status-pill-lost',
-        };
-    }
-  };
-
-  const currentAccountData = getActiveAccountList(activeAccountTab);
-
-  // Table In-line Filters Configuration
-  const accountFilters: DataTableFilter<InstagramAccount>[] = [
-    {
-      key: 'verification',
-      label: 'Account Type',
-      options: [
-        { label: 'All Accounts', value: 'all' },
-        { label: 'Verified Only', value: 'verified' },
-        { label: 'Unverified', value: 'unverified' },
-      ],
-      filterFn: (item, val) => {
-        if (val === 'verified') return !!item.isVerified;
-        if (val === 'unverified') return !item.isVerified;
-        return true;
-      },
-    },
-    {
-      key: 'timeframe',
-      label: 'Recency / Timeline',
-      options: [
-        { label: 'All Time', value: 'all' },
-        { label: 'Last 7 Days', value: '7d' },
-        { label: 'Last 30 Days', value: '30d' },
-        { label: 'Older than 30 Days', value: 'older' },
-      ],
-      filterFn: (item, val) => {
-        if (!item.followedAt) return true;
-        const daysAgo = (Date.now() - (item.followedAt > 1e11 ? item.followedAt : item.followedAt * 1000)) / 86400000;
-        if (val === '7d') return daysAgo <= 7;
-        if (val === '30d') return daysAgo <= 30;
-        if (val === 'older') return daysAgo > 30;
-        return true;
-      },
-    },
-    {
-      key: 'detectionType',
-      label: 'Detection Flag',
-      options: [
-        { label: 'All Flags', value: 'all' },
-        { label: 'Suspected Block / Unavailable', value: 'suspected_blocked' },
-        { label: 'Standard Active Accounts', value: 'standard' },
-      ],
-      filterFn: (item, val) => {
-        if (val === 'suspected_blocked') return item.statusType === 'suspected_blocked' || !!item.detectionNote;
-        if (val === 'standard') return item.statusType !== 'suspected_blocked';
-        return true;
-      },
-    },
-  ];
-
-  // Account Columns for DataTables
-  const accountColumns: DataTableColumn<InstagramAccount>[] = [
-    {
-      key: 'user',
-      header: 'Account',
-      sortable: true,
-      accessor: (item) => item.name || item.username,
-      render: (item) => (
-        <div className="table-account-cell">
-          <img
-            src={item.avatarUrl || `https://api.dicebear.com/7.x/notionists-neutral/svg?seed=${item.username}`}
-            alt={item.username}
-            className="table-account-avatar"
-          />
-          <div>
-            <div className="table-account-name-row">
-              <span className="table-account-name">
-                {item.name || item.username}
-              </span>
-              {item.isVerified && (
-                <span title="Verified" className="table-account-verified">
-                  <ShieldCheck size={13} fill="var(--accent-blue)" color="#fff" />
-                </span>
-              )}
-            </div>
-            <span className="table-account-handle">
-              @{item.username}
-            </span>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'relationship',
-      header: 'Category / Status',
-      sortable: false,
-      render: (item) => (
-        <div className="table-category-stack">
-          <span
-            className={`table-status-pill ${
-              item.statusType === 'suspected_blocked'
-                ? 'table-status-pill-blocked'
-                : currentAccountData.badgeClass
-            }`}
-          >
-            {item.statusType === 'suspected_blocked' ? 'Suspected Block / Deleted' : currentAccountData.label}
-          </span>
-          {item.detectionNote && (
-            <span className="table-detection-note">
-              <AlertTriangle size={11} />
-              {item.detectionNote}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'followedAt',
-      header: 'Followed Date',
-      sortable: true,
-      accessor: (item) => item.followedAt || 0,
-      render: (item) => (
-        <span className="table-text-secondary">
-          {item.followedAt
-            ? new Date(item.followedAt > 1e11 ? item.followedAt : item.followedAt * 1000).toLocaleDateString(undefined, {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })
-            : 'Latest Snapshot'}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'right',
-      sortable: false,
-      searchable: false,
-      render: (item) => (
-        <div className="table-actions-row">
-          <button
-            className="icon-btn table-action-icon-btn"
-            onClick={() => copyUsername(item.username)}
-            title="Copy username"
-          >
-            {copiedAccount === item.username ? (
-              <Check size={14} color="var(--accent-green)" />
-            ) : (
-              <Copy size={14} />
-            )}
-          </button>
-          <a
-            href={item.profileUrl || `https://instagram.com/${item.username}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="icon-btn table-action-icon-btn"
-            title="Check live profile status on Instagram"
-          >
-            <ExternalLink size={14} />
-          </a>
-        </div>
-      ),
-    },
-  ];
-
-  // Activity Columns for Analytics DataTable
-  const activityColumns: DataTableColumn<DailyActivityItem>[] = [
-    {
-      key: 'date',
-      header: 'Date',
-      sortable: true,
-      accessor: (item) => item.date,
-      render: (item) => (
-        <div className="table-account-cell">
-          <Calendar size={14} color="var(--accent-purple)" />
-          <span className="table-text-bold">{item.date}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'label',
-      header: 'Day Label',
-      sortable: true,
-      accessor: (item) => item.label,
-      render: (item) => <span>{item.label}</span>,
-    },
-    {
-      key: 'discovery',
-      header: 'Profile Reach',
-      sortable: true,
-      accessor: (item) => item.discovery,
-      render: (item) => (
-        <span className="table-text-bold">
-          {item.discovery.toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      key: 'gained',
-      header: 'Gained (+)',
-      sortable: true,
-      accessor: (item) => item.gained,
-      render: (item) => (
-        <span className="table-text-green">
-          +{item.gained}
-        </span>
-      ),
-    },
-    {
-      key: 'lost',
-      header: 'Lost (-)',
-      sortable: true,
-      accessor: (item) => item.lost,
-      render: (item) => (
-        <span className="table-text-red">
-          -{item.lost}
-        </span>
-      ),
-    },
-    {
-      key: 'net',
-      header: 'Net Change',
-      sortable: true,
-      accessor: (item) => item.gained - item.lost,
-      render: (item) => {
-        const net = item.gained - item.lost;
-        const isPos = net >= 0;
-        return (
-          <span className={`table-status-pill ${isPos ? 'table-status-pill-new' : 'table-status-pill-lost'}`}>
-            {isPos ? `+${net}` : net}
-          </span>
-        );
-      },
-    },
-    {
-      key: 'status',
-      header: 'Performance',
-      sortable: false,
-      render: (item) =>
-        item.isPeak ? (
-          <span className="pill-badge-warning">
-            <Sparkles size={12} />
-            Peak Day
-          </span>
-        ) : (
-          <span className="table-text-muted">Normal</span>
-        ),
-    },
-  ];
-
-  // Schedule Columns for History DataTable
-  const snapshotColumns: DataTableColumn<SnapshotHistoryItem>[] = [
-    {
-      key: 'label',
-      header: 'Snapshot Label',
-      sortable: true,
-      accessor: (item) => item.label,
-      render: (item) => (
-        <div>
-          <span className="table-text-bold">{item.label}</span>
-          <div className="table-account-handle">{item.fileName}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'date',
-      header: 'Export Timestamp',
-      sortable: true,
-      accessor: (item) => item.date,
-      render: (item) => (
-        <span className="table-text-secondary">
-          {item.date}
-        </span>
-      ),
-    },
-    {
-      key: 'format',
-      header: 'Format',
-      sortable: true,
-      accessor: (item) => item.format,
-      render: (item) => (
-        <span className="badge-format">
-          {item.format}
-        </span>
-      ),
-    },
-    {
-      key: 'followersCount',
-      header: 'Followers',
-      sortable: true,
-      accessor: (item) => item.followersCount,
-      render: (item) => (
-        <span className="table-text-bold">
-          {item.followersCount > 0 ? item.followersCount.toLocaleString() : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'followingCount',
-      header: 'Following',
-      sortable: true,
-      accessor: (item) => item.followingCount,
-      render: (item) => (
-        <span className="table-text-bold">
-          {item.followingCount > 0 ? item.followingCount.toLocaleString() : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'netChange',
-      header: 'Net Change',
-      sortable: true,
-      accessor: (item) => item.netChange,
-      render: (item) => (
-        <span className={`table-text-bold ${item.netChange > 0 ? 'table-text-green' : 'table-text-muted'}`}>
-          {item.netChange > 0 ? `+${item.netChange.toLocaleString()}` : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      accessor: (item) => item.status,
-      render: (item) => (
-        <span className={`status-pill ${item.status === 'Ready' ? 'status-ready' : item.status === 'Scheduled' ? 'status-scheduled' : ''}`}>
-          {item.status}
-        </span>
-      ),
-    },
-    {
-      key: 'action',
-      header: 'Actions',
-      align: 'right',
-      sortable: false,
-      searchable: false,
-      render: (item) => (
-        <button
-          className="datatable-btn-tool datatable-btn-sm"
-          onClick={() => {
-            alert(`Selected snapshot: ${item.label}`);
-          }}
-        >
-          <ArrowUpRight size={12} />
-          <span>View</span>
-        </button>
-      ),
-    },
-  ];
+  const currentAccountData = getCurrentAccountData(activeAccountTab, activeDiff);
+  const accountColumns = getAccountColumns(copiedAccount, copyToClipboard);
 
   return (
     <div className="app-layout">
-      {/* Background ambient light */}
+      {/* Background ambient glow effect */}
       <div className="ambient-glow" />
 
-      {/* Left Fixed & Responsive Sidebar */}
+      {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
-        onSelectTab={(tab) => {
-          setCurrentTab(tab);
-          if (tab === 'dashboard' || tab === 'overview') {
-            setTimeout(() => {
-              syncTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 50);
-          }
-        }}
+        onSelectTab={setCurrentTab}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-        onOpenSettings={handleOpenUpload}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        unfollowersCount={activeDiff.lostFollowers.length}
+        blockedCount={(activeDiff.newSnapshot.blockedProfiles || []).length}
+        likesCount={(activeDiff.newSnapshot.likedPosts || []).length}
       />
 
-      {/* Main Viewport */}
+      {/* Main Content Area */}
       <main className="main-viewport">
-        {/* Header */}
+        {/* Top Header */}
         <Header
           searchTerm={searchTerm}
-          onSearchChange={(q) => {
-            setSearchTerm(q);
-            if (q.trim().length > 0) {
-              syncTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-          }}
+          onSearchChange={setSearchTerm}
           userName={userProfile.name}
           userHandle={userProfile.username}
           avatarUrl={userProfile.avatarUrl}
-          onNotificationClick={() => {
-            if (diff) {
-              alert(`Notifications: You have ${diff.newFollowers.length} new followers and ${diff.lostFollowers.length} lost followers.`);
-            } else {
-              alert('No exports loaded yet. Please upload your Instagram export ZIP to view real notifications.');
-            }
-          }}
-          onProfileClick={() => triggerAjaxSync('fans')}
-          onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
+          onNotificationClick={() => triggerAjaxSync('lost_followers')}
+          onProfileClick={() => setCurrentTab('profile_vault')}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
         />
 
-        {/* Hero Greeting & Controls */}
+        {/* Hero Greeting Section */}
         <HeroGreeting
           userName={userProfile.name}
           hasData={!!diff}
           onOpenUpload={handleOpenUpload}
-          onOpenHowTo={() => setIsHowToOpen(true)}
+          onOpenHowTo={() => setIsHowToOpen(!isHowToOpen)}
           timeRange={timeRange}
-          onTimeRangeChange={(val) => setTimeRange(val)}
+          onTimeRangeChange={setTimeRange}
         />
 
-        {/* Privacy & Detection Callout Banner */}
-        <div className="privacy-banner">
-          <div className="privacy-banner-inner">
-            <div className="privacy-banner-links">
-              <span
-                className="privacy-link"
-                onClick={() => setShowBlockInfo(!showBlockInfo)}
-              >
-                <HelpCircle size={14} className="icon-no-shrink" />
-                <span>{showBlockInfo ? 'Hide Detection Guide' : 'How Block/Unfollow is detected?'}</span>
-              </span>
-              <span className="privacy-link" onClick={() => setIsHowToOpen(true)}>
-                How to get export ZIP?
-              </span>
+        {/* Live Active Data Comparison Session Bar */}
+        <div className="active-session-banner">
+          <div className="active-session-left">
+            <div className="session-status-badge">
+              <span className="session-pulse-dot" />
+              <span>{diff ? 'Live Comparison' : 'Ready'}</span>
             </div>
+
+            <div className="session-info-content">
+              {diff ? (
+                <div className="session-snapshots-row">
+                  <span className="session-label">Active Session:</span>
+                  <span className="snapshot-pill baseline">
+                    <span className="snapshot-name">{activeDiff.oldSnapshot.label}</span>
+                    <span className="snapshot-count">({activeDiff.followersOldCount.toLocaleString()} followers)</span>
+                  </span>
+                  <span className="snapshot-arrow">→</span>
+                  <span className="snapshot-pill current">
+                    <span className="snapshot-name">{activeDiff.newSnapshot.label}</span>
+                    <span className="snapshot-count">({activeDiff.followersNewCount.toLocaleString()} followers)</span>
+                  </span>
+                </div>
+              ) : (
+                <span className="session-empty-text">
+                  No export data loaded. Upload your Instagram ZIP files below to begin real-time comparison.
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="active-session-right">
+            <button
+              className={`session-btn-action ${showBlockInfo ? 'active' : ''}`}
+              onClick={() => setShowBlockInfo(!showBlockInfo)}
+              type="button"
+            >
+              <ShieldCheck size={14} />
+              <span>Detection Logic</span>
+            </button>
+
+            <button
+              className="session-btn-action"
+              onClick={() => setIsHowToOpen(true)}
+              type="button"
+            >
+              <HelpCircle size={14} />
+              <span>Export Guide</span>
+            </button>
 
             {diff && (
               <button
                 onClick={handleClearData}
-                className="privacy-banner-btn-clear"
+                className="session-btn-clear"
                 title="Clear current data session"
+                type="button"
               >
-                <Trash2 size={13} className="icon-no-shrink" />
-                Clear Data
+                <Trash2 size={13} />
+                <span>Clear Data</span>
               </button>
             )}
           </div>
@@ -721,27 +348,32 @@ export const App: React.FC = () => {
             <div className="block-info-header">
               <AlertTriangle size={16} color="var(--accent-purple)" />
               <h4 className="block-info-title">
-                How Instagram Unfollow & Block Detection Works
+                Instagram Data Diff & Privacy Extraction Methodology
               </h4>
             </div>
             <div className="block-info-grid">
               <div className="block-info-card">
                 <strong className="block-info-label-unfollow">
-                  1. Who Unfollowed You (100% Accurate)
+                  1. Who Unfollowed You (100% Mathematically Exact)
                 </strong>
-                Calculated by mathematical set difference: <code className="code-badge">oldSnapshot.followers - newSnapshot.followers</code>. If an account was in your previous export and missing in the new one, they unfollowed you.
+                Calculated by exact set difference:{' '}
+                <code>oldSnapshot.followers - newSnapshot.followers</code>. If an
+                account was present in your previous export and absent in the new
+                one, they stopped following you.
               </div>
               <div className="block-info-card">
                 <strong className="block-info-label-blocked">
-                  2. Who Blocked You (Detection Flag)
+                  2. Blocked Profiles & Story Hidden
                 </strong>
-                Meta never includes a "who_blocked_you" file for privacy reasons. However, when an account previously followed you and disappears while their profile returns "User not found" or chat threads vanish, our engine flags them as <strong>Suspected Blocked or Deactivated</strong>.
+                Directly extracted from Meta's <code>blocked_profiles.json</code> and{' '}
+                <code>hide_story_from.json</code> archives. Supports both modern
+                Meta 2026 label structures and legacy formats.
               </div>
             </div>
           </div>
         )}
 
-        {/* Step-by-Step Instagram ZIP Export Guide Drawer (Inline, NOT a popup) */}
+        {/* Step-by-Step Instagram ZIP Export Guide Drawer */}
         {isHowToOpen && (
           <HowToGuideModal
             isOpen={isHowToOpen}
@@ -749,7 +381,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Inline ZIP Uploader - Displayed directly on page (NO popup modal) */}
+        {/* Inline ZIP Uploader */}
         {(!diff || isUploadOpen) && (
           <div ref={uploaderRef}>
             <ZipUploader
@@ -762,407 +394,71 @@ export const App: React.FC = () => {
 
         {/* VIEW 1: DASHBOARD */}
         {currentTab === 'dashboard' && (
-          <>
-            {/* Top 3 Metric Cards */}
-            <MetricCards diff={activeDiff} onCardClick={handleMetricCardClick} />
-
-            {/* Main Split Grid: Profile Discovery + Biggest Fans */}
-            <div className="dashboard-split-grid">
-              <ProfileDiscoveryChart diff={activeDiff} />
-              <BiggestFansCard
-                fans={activeDiff.fans}
-                lostFollowers={activeDiff.lostFollowers}
-                newFollowers={activeDiff.newFollowers}
-                notFollowingBack={activeDiff.notFollowingBack}
-                onViewAll={(type) => triggerAjaxSync(type)}
-              />
-            </div>
-
-            {/* In-Page AJAX Sync DataTable Section */}
-            <div ref={syncTableRef} className="sync-section-container">
-              <div className="sync-section-header">
-                <div>
-                  <div className="sync-section-title-group">
-                    <h2 className="sync-section-title">
-                      Live Synced Account Directory
-                    </h2>
-                    <span className="sync-badge-live">
-                      <Zap size={11} fill="var(--accent-green)" />
-                      AJAX Synced ({syncLatency}ms)
-                    </span>
-                  </div>
-                  <p className="sync-section-desc">
-                    {diff ? 'Instant in-page live sync for unfollowers, suspected blocks, new followers, and fans.' : 'Upload your Instagram export ZIPs to populate real data.'}
-                  </p>
-                </div>
-
-                {/* Category navigation pills with Suspected Blocked */}
-                <div className="tabs-nav">
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'lost_followers' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('lost_followers')}
-                  >
-                    Unfollowers ({activeDiff.lostFollowers.length})
-                  </button>
-                  <button
-                    className={`tab-btn tab-btn-danger ${activeAccountTab === 'suspected_blocked' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('suspected_blocked')}
-                  >
-                    <UserX size={12} className="icon-no-shrink" />
-                    Blocked ({activeDiff.suspectedBlocked.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'new_followers' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('new_followers')}
-                  >
-                    New (+{activeDiff.newFollowers.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'not_following_back' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('not_following_back')}
-                  >
-                    Not Back ({activeDiff.notFollowingBack.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'fans' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('fans')}
-                  >
-                    Fans ({activeDiff.fans.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'mutuals' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('mutuals')}
-                  >
-                    Mutuals ({activeDiff.mutuals.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'all_followers' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('all_followers')}
-                  >
-                    All Followers ({activeDiff.newSnapshot.followers.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'all_following' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('all_following')}
-                  >
-                    All Following ({activeDiff.newSnapshot.following.length})
-                  </button>
-                </div>
-              </div>
-
-              {/* In-place DataTable with AJAX Sync & In-Table Filters */}
-              <DataTable<InstagramAccount>
-                data={currentAccountData.list}
-                columns={accountColumns}
-                keyExtractor={(item) => item.username}
-                searchPlaceholder={`Search within ${currentAccountData.label.toLowerCase()}s...`}
-                defaultSortKey="user"
-                pageSizeOptions={[5, 10, 25, 50]}
-                initialPageSize={10}
-                enableSelection={true}
-                selectableItemKey={(item) => item.username}
-                exportFileName={`${activeAccountTab}_ajax_sync`}
-                emptyMessage={diff ? `No ${currentAccountData.label.toLowerCase()} records match your filters.` : 'No Instagram data loaded. Please upload your export ZIP files above.'}
-                isSyncing={isSyncing}
-                syncStatusText={`AJAX Synced (${syncLatency}ms)`}
-                onRefreshSync={() => triggerAjaxSync()}
-                externalSearchQuery={searchTerm}
-                filters={accountFilters}
-              />
-            </div>
-          </>
+          <DashboardView
+            diff={activeDiff}
+            hasData={!!diff}
+            onCardClick={handleMetricCardClick}
+            activeAccountTab={activeAccountTab}
+            currentAccountData={currentAccountData}
+            accountColumns={accountColumns}
+            triggerAjaxSync={triggerAjaxSync}
+            isSyncing={isSyncing}
+            syncLatency={syncLatency}
+            searchTerm={searchTerm}
+            syncTableRef={syncTableRef}
+          />
         )}
 
-        {/* VIEW 2: OVERVIEW */}
-        {currentTab === 'overview' && (
-          <div className="secondary-view-container">
-            {/* Summary Cards */}
-            <div className="stat-cards-grid">
-              <div
-                className="stat-card-item"
-                onClick={() => triggerAjaxSync('lost_followers')}
-              >
-                <div className="stat-card-header">
-                  <span className="stat-card-title">Lost Followers (Unfollowed)</span>
-                  <UserMinus size={18} color="var(--accent-red)" />
-                </div>
-                <div className="stat-card-value text-red">
-                  {activeDiff.lostFollowers.length}
-                </div>
-                <span className="stat-card-sub">Stopped following your account</span>
-              </div>
-
-              <div
-                className="stat-card-item stat-card-item-danger"
-                onClick={() => triggerAjaxSync('suspected_blocked')}
-              >
-                <div className="stat-card-header">
-                  <span className="stat-card-title text-danger">Suspected Blocked</span>
-                  <UserX size={18} color="#dc2626" />
-                </div>
-                <div className="stat-card-value text-danger">
-                  {activeDiff.suspectedBlocked.length}
-                </div>
-                <span className="stat-card-sub">Profile missing or deactivated</span>
-              </div>
-
-              <div
-                className="stat-card-item"
-                onClick={() => triggerAjaxSync('new_followers')}
-              >
-                <div className="stat-card-header">
-                  <span className="stat-card-title">New Followers</span>
-                  <UserCheck size={18} color="var(--accent-green)" />
-                </div>
-                <div className="stat-card-value text-green">
-                  +{activeDiff.newFollowers.length}
-                </div>
-                <span className="stat-card-sub">Followed you in this period</span>
-              </div>
-
-              <div
-                className="stat-card-item"
-                onClick={() => triggerAjaxSync('not_following_back')}
-              >
-                <div className="stat-card-header">
-                  <span className="stat-card-title">Not Following Back</span>
-                  <Users size={18} color="#f59e0b" />
-                </div>
-                <div className="stat-card-value text-warning">
-                  {activeDiff.notFollowingBack.length}
-                </div>
-                <span className="stat-card-sub">Accounts you follow who don't follow back</span>
-              </div>
-
-              <div
-                className="stat-card-item"
-                onClick={() => triggerAjaxSync('fans')}
-              >
-                <div className="stat-card-header">
-                  <span className="stat-card-title">Fans (You Don't Follow)</span>
-                  <Users size={18} color="var(--accent-purple)" />
-                </div>
-                <div className="stat-card-value text-purple">
-                  {activeDiff.fans.length}
-                </div>
-                <span className="stat-card-sub">Follow you but you don't follow back</span>
-              </div>
-            </div>
-
-            {/* In-page Full Relationship Explorer DataTable */}
-            <div ref={syncTableRef}>
-              <div className="directory-header-row">
-                <div>
-                  <div className="directory-title-stack">
-                    <h2 className="directory-title">
-                      Overview Relationship Directory
-                    </h2>
-                    <span className="sync-badge-pill">
-                      <Zap size={11} fill="var(--accent-green)" />
-                      AJAX Synced ({syncLatency}ms)
-                    </span>
-                  </div>
-                  <p className="directory-desc">
-                    Filter, sort, search, and bulk export Instagram accounts across all relationship categories.
-                  </p>
-                </div>
-
-                <div className="tabs-nav tabs-nav-mb-0">
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'lost_followers' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('lost_followers')}
-                  >
-                    Unfollowers ({activeDiff.lostFollowers.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'suspected_blocked' ? 'tab-btn-danger-active active' : 'tab-btn-danger-inactive'}`}
-                    onClick={() => triggerAjaxSync('suspected_blocked')}
-                  >
-                    <UserX size={12} className="tab-btn-icon-inline" />
-                    Blocked ({activeDiff.suspectedBlocked.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'new_followers' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('new_followers')}
-                  >
-                    New ({activeDiff.newFollowers.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'not_following_back' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('not_following_back')}
-                  >
-                    Not Back ({activeDiff.notFollowingBack.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'fans' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('fans')}
-                  >
-                    Fans ({activeDiff.fans.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'mutuals' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('mutuals')}
-                  >
-                    Mutuals ({activeDiff.mutuals.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'all_followers' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('all_followers')}
-                  >
-                    All Followers ({activeDiff.newSnapshot.followers.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeAccountTab === 'all_following' ? 'active' : ''}`}
-                    onClick={() => triggerAjaxSync('all_following')}
-                  >
-                    All Following ({activeDiff.newSnapshot.following.length})
-                  </button>
-                </div>
-              </div>
-
-              <DataTable<InstagramAccount>
-                data={currentAccountData.list}
-                columns={accountColumns}
-                keyExtractor={(item) => item.username}
-                searchPlaceholder={`Search within ${currentAccountData.label.toLowerCase()}s...`}
-                defaultSortKey="user"
-                pageSizeOptions={[10, 25, 50, 100]}
-                initialPageSize={10}
-                enableSelection={true}
-                selectableItemKey={(item) => item.username}
-                exportFileName={`${activeAccountTab}_overview`}
-                emptyMessage={diff ? `No ${currentAccountData.label.toLowerCase()} records match your filters.` : 'No Instagram data loaded. Please upload your export ZIP files above.'}
-                isSyncing={isSyncing}
-                syncStatusText={`AJAX Synced (${syncLatency}ms)`}
-                onRefreshSync={() => triggerAjaxSync()}
-                externalSearchQuery={searchTerm}
-                filters={accountFilters}
-              />
-            </div>
-          </div>
+        {/* VIEW 2: RELATIONSHIPS */}
+        {(currentTab === 'relationships' || currentTab === 'overview') && (
+          <RelationshipsView
+            diff={activeDiff}
+            activeAccountTab={activeAccountTab}
+            currentAccountData={currentAccountData}
+            accountColumns={accountColumns}
+            triggerAjaxSync={triggerAjaxSync}
+            isSyncing={isSyncing}
+            syncLatency={syncLatency}
+            searchTerm={searchTerm}
+            syncTableRef={syncTableRef}
+          />
         )}
 
-        {/* VIEW 3: SCHEDULE */}
-        {currentTab === 'schedule' && (
-          <div className="secondary-view-container">
-            <div className="directory-header-row-plain">
-              <div>
-                <h2 className="directory-title">
-                  Export Snapshot History & Backup Logs
-                </h2>
-                <p className="directory-desc">
-                  All historical Instagram data exports processed locally on your device.
-                </p>
-              </div>
-
-              <button className="btn-upload-primary" onClick={handleOpenUpload}>
-                <FileCheck size={16} />
-                <span>Upload New ZIP Export</span>
-              </button>
-            </div>
-
-            <DataTable<SnapshotHistoryItem>
-              data={snapshotHistory}
-              columns={snapshotColumns}
-              keyExtractor={(item) => item.id}
-              searchPlaceholder="Search snapshots by label, file name, or format..."
-              defaultSortKey="date"
-              defaultSortDirection="desc"
-              pageSizeOptions={[5, 10, 20]}
-              initialPageSize={10}
-              enableSelection={true}
-              selectableItemKey={(item) => item.id}
-              exportFileName="snapshot_history"
-              emptyMessage="No snapshot exports recorded yet. Upload your first Instagram export ZIP above to start tracking diff history."
-              isSyncing={isSyncing}
-              syncStatusText={`AJAX Synced (${syncLatency}ms)`}
-              onRefreshSync={() => triggerAjaxSync()}
-            />
-          </div>
+        {/* VIEW 3: CONNECTIONS & PRIVACY */}
+        {currentTab === 'connections' && (
+          <ConnectionsView
+            diff={activeDiff}
+            activeAccountTab={activeAccountTab}
+            currentAccountData={currentAccountData}
+            accountColumns={accountColumns}
+            triggerAjaxSync={triggerAjaxSync}
+            isSyncing={isSyncing}
+            syncLatency={syncLatency}
+            searchTerm={searchTerm}
+          />
         )}
 
-        {/* VIEW 4: ANALYTICS */}
-        {currentTab === 'analytics' && (
-          <div className="secondary-view-container">
-            {/* Top Analytics Metrics */}
-            <div className="stat-cards-grid-lg">
-              <div className="stat-card-item">
-                <div className="stat-card-header">
-                  <span className="stat-card-title">Follow-Back Conversion</span>
-                  <TrendingUp size={18} color="var(--accent-purple)" />
-                </div>
-                <div className="stat-card-value text-purple">
-                  {activeDiff.followBackRate}%
-                </div>
-                <span className="stat-card-sub">Mutual ratio among following</span>
-              </div>
+        {/* VIEW 4: ACTIVITY & CONTENT */}
+        {currentTab === 'activity' && (
+          <ActivityView
+            diff={activeDiff}
+            activeAccountTab={activeAccountTab}
+            triggerAjaxSync={triggerAjaxSync}
+            isSyncing={isSyncing}
+            syncLatency={syncLatency}
+            searchTerm={searchTerm}
+          />
+        )}
 
-              <div className="stat-card-item">
-                <div className="stat-card-header">
-                  <span className="stat-card-title">Net Follower Growth</span>
-                  <TrendingUp size={18} color="var(--accent-green)" />
-                </div>
-                <div className="stat-card-value text-green">
-                  {activeDiff.followersNetChange > 0 ? `+${activeDiff.followersNetChange.toLocaleString()}` : activeDiff.followersNetChange.toLocaleString()}
-                </div>
-                <span className="stat-card-sub">{activeDiff.followersChangePercent}% over last snapshot</span>
-              </div>
-
-              <div className="stat-card-item">
-                <div className="stat-card-header">
-                  <span className="stat-card-title">Following Expansion</span>
-                  <Users size={18} color="var(--accent-blue)" />
-                </div>
-                <div className="stat-card-value text-blue">
-                  {activeDiff.followingNetChange > 0 ? `+${activeDiff.followingNetChange.toLocaleString()}` : activeDiff.followingNetChange.toLocaleString()}
-                </div>
-                <span className="stat-card-sub">{activeDiff.followingChangePercent}% following change</span>
-              </div>
-
-              <div className="stat-card-item">
-                <div className="stat-card-header">
-                  <span className="stat-card-title">Unfollow Rate</span>
-                  <UserMinus size={18} color="var(--accent-red)" />
-                </div>
-                <div className="stat-card-value text-red">
-                  {activeDiff.followersOldCount > 0
-                    ? `${((activeDiff.lostFollowers.length / activeDiff.followersOldCount) * 100).toFixed(2)}%`
-                    : '0%'}
-                </div>
-                <span className="stat-card-sub">{activeDiff.lostFollowers.length} accounts unfollowed</span>
-              </div>
-            </div>
-
-            {/* Daily Activity & Velocity DataTable */}
-            <div>
-              <div className="tabs-nav-mb">
-                <h2 className="directory-title">
-                  Daily Activity & Follower Velocity DataTable
-                </h2>
-                <p className="directory-desc">
-                  Breakdown of profile reach, followers gained, lost, net velocity, and peak activity days.
-                </p>
-              </div>
-
-              <DataTable<DailyActivityItem>
-                data={activeDiff.dailyActivity}
-                columns={activityColumns}
-                keyExtractor={(item) => item.date}
-                searchPlaceholder="Search days by date or label..."
-                defaultSortKey="date"
-                defaultSortDirection="desc"
-                pageSizeOptions={[5, 10, 20]}
-                initialPageSize={10}
-                enableSelection={true}
-                selectableItemKey={(item) => item.date}
-                exportFileName="daily_activity_analytics"
-                emptyMessage={diff ? 'No daily activity recorded for this period.' : 'No Instagram data loaded. Please upload your export ZIP files above.'}
-                isSyncing={isSyncing}
-                syncStatusText={`AJAX Synced (${syncLatency}ms)`}
-                onRefreshSync={() => triggerAjaxSync()}
-              />
-            </div>
-          </div>
+        {/* VIEW 5: PROFILE & VAULT */}
+        {(currentTab === 'profile_vault' || currentTab === 'schedule') && (
+          <ProfileVaultView
+            diff={activeDiff}
+            userProfile={userProfile}
+            snapshotHistory={snapshotHistory}
+            onOpenUpload={handleOpenUpload}
+            onClearData={handleClearData}
+          />
         )}
       </main>
     </div>

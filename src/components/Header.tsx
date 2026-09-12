@@ -1,5 +1,5 @@
-import React from 'react';
 import { Search, Bell, ChevronDown, Menu } from 'lucide-react';
+import { UserAvatar } from './UserAvatar';
 
 interface HeaderProps {
   searchTerm: string;
@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* User Profile Chip */}
         <div className="user-profile-chip" onClick={onProfileClick} role="button" tabIndex={0}>
-          <img src={avatarUrl} alt={userName} className="user-avatar" />
+          <UserAvatar src={avatarUrl} username={userHandle} size={36} className="user-avatar" />
           <div className="user-info">
             <span className="user-name">{userName}</span>
             <span className="user-handle">{userHandle.startsWith('@') ? userHandle : `@${userHandle}`}</span>

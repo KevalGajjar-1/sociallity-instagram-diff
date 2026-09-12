@@ -530,6 +530,7 @@ export function DataTable<T>({
                   <th
                     key={col.key}
                     onClick={() => handleSort(col.key, col.sortable)}
+                    style={col.width ? { width: col.width } : undefined}
                     className={`${col.sortable ? 'sortable' : ''} ${alignClass}`.trim()}
                   >
                     <div className={`datatable-th-inner ${justifyClass}`}>
@@ -613,6 +614,7 @@ export function DataTable<T>({
                       return (
                         <td
                           key={col.key}
+                          style={col.width ? { width: col.width } : undefined}
                           className={alignClass}
                         >
                           {col.render ? col.render(item, index) : cellValue}
