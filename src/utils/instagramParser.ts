@@ -8,6 +8,7 @@ import {
   SavedPostItem,
   SyncedContactItem,
   AudienceInsights,
+  UserMediaPostItem,
 } from '../types/instagram';
 
 /**
@@ -603,11 +604,23 @@ export async function buildSnapshotFromEntries(
       const content = await entry.readText();
       syncedContacts.push(...parseSyncedContactsJson(content));
     }
-    // 10. Personal Profile
+    // 10. Personal Profile & Profile Photos
     else if (fileName === 'personal_information.json' || fileName === 'instagram_profile_information.json') {
       const content = await entry.readText();
       const info = parseProfileInfoJson(content);
-      if (info) profileInfo = info;
+      if (info) {
+        profileInfo = profileInfo ? { ...profileInfo, ...info } : info;
+      }
+    }
+    else if (fileName.includes('profile_photo')) {
+      try {
+        const content = await entry.readText();
+        const d = JSON.parse(content);
+        const uri = d.ig_profile_picture?.[0]?.uri || d.profile_photos?.[0]?.uri;
+        if (uri && profileInfo) {
+          profileInfo.profilePicUri = uri;
+        }
+      } catch {}
     }
     // 11. Liked Posts
     else if (fileName.includes('liked_post')) {
@@ -633,19 +646,82 @@ export async function buildSnapshotFromEntries(
     // Note: removed_suggestions.json is explicitly ignored so feed suggestions never contaminate followers!
   }
 
-  // If a profile photo was identified in personal_information, extract its image data
-  if (profileInfo && profileInfo.profilePicUri) {
-    const targetUri = profileInfo.profilePicUri.replace(/\\/g, '/').toLowerCase();
-    const picEntry = entries.find((e) =>
-      e.path.toLowerCase().replace(/\\/g, '/').endsWith(targetUri)
-    );
-    if (picEntry && picEntry.readBase64) {
+  // Extract real Instagram Profile Photo binary into data URL
+  let targetUri = (profileInfo?.profilePicUri || '').replace(/\\/g, '/').toLowerCase();
+  let picEntry = entries.find((e) => {
+    const p = e.path.toLowerCase().replace(/\\/g, '/');
+    if (targetUri && (p.endsWith(targetUri) || p.endsWith(targetUri.split('/').pop() || ''))) return true;
+    return (p.includes('media/other/') || p.includes('profile_photo')) && (p.endsWith('.jpg') || p.endsWith('.png') || p.endsWith('.jpeg'));
+  });
+
+  if (picEntry && picEntry.readBase64) {
+    try {
+      const b64 = await picEntry.readBase64();
+      const ext = picEntry.path.toLowerCase().endsWith('.png') ? 'png' : 'jpeg';
+      const dataUrl = `data:image/${ext};base64,${b64}`;
+      if (!profileInfo) {
+        profileInfo = {
+          username: 'instagram_user',
+          name: 'Instagram User',
+          profilePicDataUrl: dataUrl,
+        };
+      } else {
+        profileInfo.profilePicDataUrl = dataUrl;
+      }
+    } catch (err) {
+      console.warn('Could not extract profile photo binary from archive:', err);
+    }
+  }
+
+  // Extract all real Instagram Post Images & User Media into userMediaPosts
+  const userMediaPosts: UserMediaPostItem[] = [];
+  const postMetadataMap = new Map<string, { creationTimestamp?: number; caption?: string }>();
+
+  for (const entry of entries) {
+    const fn = entry.path.toLowerCase().replace(/\\/g, '/').split('/').pop() || '';
+    if (fn.startsWith('posts') && fn.endsWith('.json')) {
       try {
-        const b64 = await picEntry.readBase64();
-        const ext = targetUri.endsWith('.png') ? 'png' : 'jpeg';
-        profileInfo.profilePicDataUrl = `data:image/${ext};base64,${b64}`;
+        const text = await entry.readText();
+        const d = JSON.parse(text);
+        const list = Array.isArray(d) ? d : [];
+        for (const item of list) {
+          if (Array.isArray(item.media)) {
+            for (const m of item.media) {
+              if (m.uri) {
+                const baseName = m.uri.toLowerCase().split('/').pop() || '';
+                postMetadataMap.set(baseName, {
+                  creationTimestamp: m.creation_timestamp,
+                  caption: m.title || item.title || '',
+                });
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+  }
+
+  for (const entry of entries) {
+    const norm = entry.path.toLowerCase().replace(/\\/g, '/');
+    if (
+      (norm.startsWith('media/posts/') || norm.includes('your_posts')) &&
+      (norm.endsWith('.jpg') || norm.endsWith('.jpeg') || norm.endsWith('.png') || norm.endsWith('.webp')) &&
+      entry.readBase64
+    ) {
+      try {
+        const b64 = await entry.readBase64();
+        const ext = norm.endsWith('.png') ? 'png' : 'jpeg';
+        const baseName = norm.split('/').pop() || '';
+        const meta = postMetadataMap.get(baseName);
+        userMediaPosts.push({
+          uri: entry.path,
+          dataUrl: `data:image/${ext};base64,${b64}`,
+          fileName: baseName,
+          creationTimestamp: meta?.creationTimestamp,
+          caption: meta?.caption,
+        });
       } catch (err) {
-        console.warn('Could not extract profile photo binary from archive:', err);
+        console.warn('Failed to extract media post image:', err);
       }
     }
   }
@@ -676,6 +752,8 @@ export async function buildSnapshotFromEntries(
     likedPosts,
     comments,
     savedPosts,
+    audienceInsights,
+    userMediaPosts,
   };
 }
 

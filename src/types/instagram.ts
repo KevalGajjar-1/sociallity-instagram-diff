@@ -65,6 +65,14 @@ export interface AudienceInsights {
   dateRange?: string;
 }
 
+export interface UserMediaPostItem {
+  uri: string;
+  dataUrl?: string;
+  fileName?: string;
+  creationTimestamp?: number;
+  caption?: string;
+}
+
 export interface InstagramSnapshot {
   label: string;
   exportDate?: string;
@@ -83,6 +91,7 @@ export interface InstagramSnapshot {
   comments?: CommentItem[];
   savedPosts?: SavedPostItem[];
   audienceInsights?: AudienceInsights;
+  userMediaPosts?: UserMediaPostItem[];
 }
 
 export interface TopCreatorItem {
@@ -138,6 +147,9 @@ export interface DiffResult {
 
   // Real Activity Timeline from actual timestamps
   dailyActivity: DailyActivityItem[];
+
+  // Extracted Real Instagram Post Photos & User Media
+  userMediaPosts?: UserMediaPostItem[];
 }
 
 export interface DailyActivityItem {
@@ -190,4 +202,5 @@ export type FilterListType =
   | 'synced_contacts'
   | 'liked_posts'
   | 'comments'
-  | 'saved_posts';
+  | 'saved_posts'
+  | 'user_media';

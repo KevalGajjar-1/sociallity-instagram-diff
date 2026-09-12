@@ -311,6 +311,7 @@ export function computeDiff(
     isPartialExport,
     partialExportNote,
     verifiedFollowersCount: newSnapshot.audienceInsights?.totalFollowers,
+    userMediaPosts: newSnapshot.userMediaPosts || oldSnapshot.userMediaPosts || [],
   };
 }
 
@@ -432,5 +433,6 @@ export function createEmptyDiff(): DiffResult {
     followingChangePercent: 0,
     followBackRate: 0,
     dailyActivity: [],
+    userMediaPosts: [],
   };
 }

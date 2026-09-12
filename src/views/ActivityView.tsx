@@ -1,5 +1,16 @@
-import React from 'react';
-import { Heart, MessageSquare, Bookmark } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Heart,
+  MessageSquare,
+  Bookmark,
+  Image as ImageIcon,
+  ExternalLink,
+  Calendar,
+  X,
+  Eye,
+  Download,
+  Sparkles,
+} from 'lucide-react';
 import { DataTable } from '../components/DataTable';
 import { UserAvatar } from '../components/UserAvatar';
 import {
@@ -13,6 +24,7 @@ import {
   LikedPostItem,
   CommentItem,
   SavedPostItem,
+  UserMediaPostItem,
 } from '../types/instagram';
 
 interface ActivityViewProps {
@@ -32,6 +44,19 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   syncLatency,
   searchTerm,
 }) => {
+  const mediaPosts = diff.userMediaPosts || diff.newSnapshot.userMediaPosts || [];
+  const [selectedPhoto, setSelectedPhoto] = useState<UserMediaPostItem | null>(null);
+
+  // Filter media posts by search term if provided
+  const filteredMedia = mediaPosts.filter((post) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (post.caption && post.caption.toLowerCase().includes(term)) ||
+      (post.fileName && post.fileName.toLowerCase().includes(term))
+    );
+  });
+
   return (
     <div className="secondary-view-container">
       <div className="directory-header-row">
@@ -40,11 +65,20 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
             Instagram Activity & Content Engagement
           </h2>
           <p className="directory-desc">
-            Explore posts you have liked, creators you engage with most, comments left on content, and saved bookmarks.
+            Explore your real uploaded Instagram post photos, posts you liked, creators you engage with, comments, and saved bookmarks.
           </p>
         </div>
 
         <div className="tabs-nav tabs-nav-mb-0">
+          {mediaPosts.length > 0 && (
+            <button
+              className={`tab-btn ${activeAccountTab === 'user_media' ? 'active' : ''}`}
+              onClick={() => triggerAjaxSync('user_media')}
+            >
+              <ImageIcon size={14} style={{ marginRight: '4px' }} />
+              Exported Photos ({mediaPosts.length})
+            </button>
+          )}
           <button
             className={`tab-btn ${activeAccountTab === 'liked_posts' ? 'active' : ''}`}
             onClick={() => triggerAjaxSync('liked_posts')}
@@ -80,7 +114,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
               <div
                 key={creator.username}
                 style={{
-                  background: 'var(--bg-card)',
+                  background: 'var(--bg-surface)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '12px',
                   padding: '12px 16px',
@@ -108,8 +142,82 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
         </div>
       )}
 
-      {/* Content Table */}
-      {activeAccountTab === 'comments' ? (
+      {/* VIEW 1: USER EXTRACTED REAL INSTAGRAM PHOTOS GALLERY */}
+      {activeAccountTab === 'user_media' ? (
+        <div>
+          <div className="activity-gallery-banner">
+            <div className="activity-gallery-banner-badge">
+              <Sparkles size={14} />
+              <span>Extracted Media Binary</span>
+            </div>
+            <p className="activity-gallery-banner-text">
+              Showing <strong>{filteredMedia.length}</strong> real Instagram post photos and images extracted directly from your account archive.
+            </p>
+          </div>
+
+          <div className="activity-photo-grid">
+            {filteredMedia.map((photo, idx) => {
+              const dateStr = photo.creationTimestamp
+                ? new Date(
+                    photo.creationTimestamp > 1e11
+                      ? photo.creationTimestamp
+                      : photo.creationTimestamp * 1000
+                  ).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : undefined;
+
+              return (
+                <div
+                  key={`${photo.fileName || idx}`}
+                  className="activity-photo-card"
+                  onClick={() => setSelectedPhoto(photo)}
+                >
+                  <div className="activity-photo-thumb-wrap">
+                    {photo.dataUrl ? (
+                      <img
+                        src={photo.dataUrl}
+                        alt={photo.caption || photo.fileName || `Instagram Photo ${idx + 1}`}
+                        className="activity-photo-thumb"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="activity-photo-placeholder">
+                        <ImageIcon size={32} />
+                      </div>
+                    )}
+                    <div className="activity-photo-hover-overlay">
+                      <Eye size={22} color="#ffffff" />
+                      <span>View Full Size</span>
+                    </div>
+                  </div>
+
+                  <div className="activity-photo-info">
+                    {dateStr && (
+                      <div className="activity-photo-date">
+                        <Calendar size={12} />
+                        <span>{dateStr}</span>
+                      </div>
+                    )}
+                    <div className="activity-photo-title">
+                      {photo.caption || photo.fileName || `Photo #${idx + 1}`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {filteredMedia.length === 0 && (
+            <div className="empty-state-box">
+              <ImageIcon size={36} color="var(--text-muted)" />
+              <p>No photos matched your search term.</p>
+            </div>
+          )}
+        </div>
+      ) : activeAccountTab === 'comments' ? (
         <DataTable<CommentItem>
           data={diff.newSnapshot.comments || []}
           columns={commentColumns}
@@ -160,6 +268,62 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
           onRefreshSync={() => triggerAjaxSync()}
           externalSearchQuery={searchTerm}
         />
+      )}
+
+      {/* FULL-SIZE PHOTO LIGHTBOX MODAL */}
+      {selectedPhoto && (
+        <div className="photo-lightbox-backdrop" onClick={() => setSelectedPhoto(null)}>
+          <div
+            className="photo-lightbox-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="photo-lightbox-header">
+              <div className="photo-lightbox-title-wrap">
+                <span className="photo-lightbox-badge">Instagram Archive Media</span>
+                <h4 className="photo-lightbox-filename">
+                  {selectedPhoto.fileName || 'instagram_post.jpg'}
+                </h4>
+              </div>
+
+              <div className="photo-lightbox-actions">
+                {selectedPhoto.dataUrl && (
+                  <a
+                    href={selectedPhoto.dataUrl}
+                    download={selectedPhoto.fileName || 'instagram_photo.jpg'}
+                    className="photo-lightbox-btn"
+                    title="Download high-resolution image"
+                  >
+                    <Download size={16} />
+                    <span>Download</span>
+                  </a>
+                )}
+                <button
+                  className="photo-lightbox-btn-close"
+                  onClick={() => setSelectedPhoto(null)}
+                  title="Close preview"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="photo-lightbox-content">
+              {selectedPhoto.dataUrl && (
+                <img
+                  src={selectedPhoto.dataUrl}
+                  alt={selectedPhoto.caption || 'Instagram Full Photo'}
+                  className="photo-lightbox-image"
+                />
+              )}
+            </div>
+
+            {selectedPhoto.caption && (
+              <div className="photo-lightbox-footer">
+                <p className="photo-lightbox-caption">{selectedPhoto.caption}</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

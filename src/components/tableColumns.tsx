@@ -23,7 +23,15 @@ export function getAccountColumns(
       accessor: (item: InstagramAccount) => `${item.username} ${item.name || ''}`,
       render: (item) => (
         <div className="table-user-cell">
-          <UserAvatar src={item.avatarUrl} username={item.username} size={38} />
+          <a
+            href={item.profileUrl || `https://www.instagram.com/${item.username}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`View @${item.username}'s live profile & photo on Instagram`}
+            className="table-avatar-link"
+          >
+            <UserAvatar src={item.avatarUrl} username={item.username} size={38} />
+          </a>
           <div className="table-user-meta">
             <div className="table-username-row">
               <span className="table-username">@{item.username}</span>
