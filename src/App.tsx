@@ -319,15 +319,6 @@ export const App: React.FC = () => {
               <span>Detection Logic</span>
             </button>
 
-            <button
-              className="session-btn-action"
-              onClick={() => setIsHowToOpen(true)}
-              type="button"
-            >
-              <HelpCircle size={14} />
-              <span>Export Guide</span>
-            </button>
-
             {diff && (
               <button
                 onClick={handleClearData}
